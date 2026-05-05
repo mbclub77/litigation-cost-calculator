@@ -92,7 +92,7 @@ body{font-family:'Malgun Gothic','맑은 고딕',Arial,sans-serif;font-size:14px
 .ctbl tr.ttl{background:#4a6fa5;color:#fff;font-weight:700;font-size:13px;}
 .ctbl tr.ttl td{border:1px solid #7a9cc8;}
 /* wctbl margin-top 조정 */
-.wctbl{width:100%;border-collapse:collapse;font-size:12px;margin-top:3em;}
+.wctbl{width:100%;border-collapse:collapse;font-size:12px;margin-top:0.5em;}
 .wctbl th{background:#4a6fa5;color:#fff;padding:7px 8px;text-align:center;border:1px solid #4a6fa5;font-size:11.5px;}
 .wctbl td{padding:6px 8px;border:1px solid #ccc;vertical-align:middle;}
 .wctbl .amt{text-align:right;font-family:'Courier New',monospace;white-space:nowrap;}
@@ -601,9 +601,9 @@ const AbandonDoc = ({inst}) => {
   const bonRowCount = 4 + (attendN>0?1:0) + (mealN>0?1:0) + (secN>0?1:0) + 1; // 기본4 + 조건3 + 소계1
   return (
     <div>
-      <div className="doc-title">소 송 비 용 계 산 서</div>
+      <div className="doc-title" contentEditable suppressContentEditableWarning>소 송 비 용 계 산 서</div>
       {/* 수정 4: margin-top 4.5em */}
-      <div style={{fontSize:13,marginTop:'4.5em',marginBottom:8}}>
+      <div style={{fontSize:13,marginTop:'4.5em',marginBottom:8}} contentEditable suppressContentEditableWarning>
         ○ 본안사건: {inst.court} {inst.caseNum} {inst.caseTitle}
       </div>
       <table className="ctbl" style={{marginTop:8}}>
@@ -611,33 +611,58 @@ const AbandonDoc = ({inst}) => {
         <thead><tr><th>심 급</th><th>비 용 목 록</th><th>비 용 액</th><th>비 고</th></tr></thead>
         <tbody>
           <tr>
-            <td rowSpan={bonRowCount} className="ctr" style={{fontWeight:700,verticalAlign:'middle',lineHeight:1.8}}>본안사건<br/>소송비용</td>
-            <td>인지액</td><td className="amt">{stampN>0?fmt(stampN):'-'}</td><td contentEditable suppressContentEditableWarning></td>
+            <td rowSpan={bonRowCount} className="ctr" contentEditable suppressContentEditableWarning style={{fontWeight:700,verticalAlign:'middle',lineHeight:1.8}}>본안사건<br/>소송비용</td>
+            <td contentEditable suppressContentEditableWarning>인지액</td>
+            <td className="amt" contentEditable suppressContentEditableWarning>{stampN>0?fmt(stampN):'-'}</td>
+            <td contentEditable suppressContentEditableWarning></td>
           </tr>
-          <tr className="even"><td>송달료</td><td className="amt">{postageN>0?fmt(postageN):'-'}</td><td contentEditable suppressContentEditableWarning></td></tr>
-          <tr><td>환급액</td><td className="amt">{refundN>0?`-${refundN.toLocaleString()}원`:'-'}</td><td contentEditable suppressContentEditableWarning></td></tr>
-          <tr className="even"><td>출장비</td><td className="amt">{outingN>0?fmt(outingN):'-'}</td>
-            <td contentEditable suppressContentEditableWarning style={{fontSize:12}}>{inst.outingNote||''}</td>
+          <tr className="even">
+            <td contentEditable suppressContentEditableWarning>송달료</td>
+            <td className="amt" contentEditable suppressContentEditableWarning>{postageN>0?fmt(postageN):'-'}</td>
+            <td contentEditable suppressContentEditableWarning></td>
           </tr>
-          {attendN>0&&<tr><td style={{fontSize:12}}>변론기일 참석 일당 ({N(inst.attendCnt)}회)</td><td className="amt">{fmt(attendN)}</td><td contentEditable suppressContentEditableWarning style={{fontSize:11}}>50,000원 × {N(inst.attendCnt)}회</td></tr>}
-          {mealN>0&&<tr className="even"><td style={{fontSize:12}}>식대 ({N(inst.mealCnt)}회)</td><td className="amt">{fmt(mealN)}</td><td contentEditable suppressContentEditableWarning style={{fontSize:11}}>25,000원 × {N(inst.mealCnt)}회</td></tr>}
-          {secN>0&&<tr><td style={{fontSize:12}}>서기료 ({N(inst.secPages)}장)</td><td className="amt">{fmt(secN)}</td><td contentEditable suppressContentEditableWarning style={{fontSize:11}}>250원 × {N(inst.secPages)}장</td></tr>}
-          <tr className="sub"><td style={{textAlign:'center'}}>소계</td><td className="amt">{fmt(bonSub)}</td><td></td></tr>
           <tr>
-            <td rowSpan="3" className="ctr" style={{fontWeight:700,verticalAlign:'middle',lineHeight:1.8}}>신청사건<br/>소송비용</td>
-            <td style={{fontSize:12}}>소송비용액확정결정신청 인지대</td><td className="amt">{appStN>0?fmt(appStN):'-'}</td><td contentEditable suppressContentEditableWarning></td>
+            <td contentEditable suppressContentEditableWarning>환급액</td>
+            <td className="amt" contentEditable suppressContentEditableWarning>{refundN>0?`-${refundN.toLocaleString()}원`:'-'}</td>
+            <td contentEditable suppressContentEditableWarning></td>
           </tr>
-          <tr className="even"><td style={{fontSize:12}}>소송비용액확정결정신청 송달료</td><td className="amt">{appPoN>0?fmt(appPoN):'-'}</td><td contentEditable suppressContentEditableWarning></td></tr>
-          <tr className="sub"><td style={{textAlign:'center'}}>소계</td><td className="amt">{fmt(appSub)}</td><td></td></tr>
+          <tr className="even">
+            <td contentEditable suppressContentEditableWarning>출장비</td>
+            <td className="amt" contentEditable suppressContentEditableWarning>{outingN>0?fmt(outingN):'-'}</td>
+            <td contentEditable suppressContentEditableWarning></td>
+          </tr>
+          {attendN>0&&<tr><td contentEditable suppressContentEditableWarning style={{fontSize:12}}>변론기일 참석 일당 ({N(inst.attendCnt)}회)</td><td className="amt" contentEditable suppressContentEditableWarning>{fmt(attendN)}</td><td contentEditable suppressContentEditableWarning style={{fontSize:11}}>50,000원 × {N(inst.attendCnt)}회</td></tr>}
+          {mealN>0&&<tr className="even"><td contentEditable suppressContentEditableWarning style={{fontSize:12}}>식대 ({N(inst.mealCnt)}회)</td><td className="amt" contentEditable suppressContentEditableWarning>{fmt(mealN)}</td><td contentEditable suppressContentEditableWarning style={{fontSize:11}}>25,000원 × {N(inst.mealCnt)}회</td></tr>}
+          {secN>0&&<tr><td contentEditable suppressContentEditableWarning style={{fontSize:12}}>서기료 ({N(inst.secPages)}장)</td><td className="amt" contentEditable suppressContentEditableWarning>{fmt(secN)}</td><td contentEditable suppressContentEditableWarning style={{fontSize:11}}>250원 × {N(inst.secPages)}장</td></tr>}
+          <tr className="sub">
+            <td contentEditable suppressContentEditableWarning style={{textAlign:'center'}}>소계</td>
+            <td className="amt" contentEditable suppressContentEditableWarning>{fmt(bonSub)}</td>
+            <td contentEditable suppressContentEditableWarning></td>
+          </tr>
           <tr>
-            <td colSpan="4" style={{textAlign:'center',padding:'10px 8px',fontWeight:600,fontSize:12.5}}
+            <td rowSpan="3" className="ctr" contentEditable suppressContentEditableWarning style={{fontWeight:700,verticalAlign:'middle',lineHeight:1.8}}>신청사건<br/>소송비용</td>
+            <td contentEditable suppressContentEditableWarning style={{fontSize:12}}>소송비용액확정결정신청 인지대</td>
+            <td className="amt" contentEditable suppressContentEditableWarning>{appStN>0?fmt(appStN):'-'}</td>
+            <td contentEditable suppressContentEditableWarning></td>
+          </tr>
+          <tr className="even">
+            <td contentEditable suppressContentEditableWarning style={{fontSize:12}}>소송비용액확정결정신청 송달료</td>
+            <td className="amt" contentEditable suppressContentEditableWarning>{appPoN>0?fmt(appPoN):'-'}</td>
+            <td contentEditable suppressContentEditableWarning></td>
+          </tr>
+          <tr className="sub">
+            <td contentEditable suppressContentEditableWarning style={{textAlign:'center'}}>소계</td>
+            <td className="amt" contentEditable suppressContentEditableWarning>{fmt(appSub)}</td>
+            <td contentEditable suppressContentEditableWarning></td>
+          </tr>
+          <tr>
+            <td colSpan="4" contentEditable suppressContentEditableWarning style={{textAlign:'center',padding:'10px 8px',fontWeight:600,fontSize:12.5}}
               dangerouslySetInnerHTML={{__html:`공단 청구가능 소송비용(${fmt(bonSub)}) ${cmpSymbol} 소송비용 신청 행정비용(${fmt(appSub)})`}}/>
           </tr>
         </tbody>
       </table>
       <div className="abn-note" style={{fontSize:11}} contentEditable suppressContentEditableWarning>
-        ○ 관련지침<br/>
-        &nbsp;&nbsp;- 소송사무처리지침 제33조(소송비용액확정 신청의 예외) 제1항 제2호: 법원에 소송비용액확정 신청하려는 본안사건의 소송비용이 그 확정 신청에 드는 행정비용(해당 비용신청 인지대, 송달료, 출장비에 한정한다)보다 적은 경우(포기)
+        ○ 관련지침 - 소송사무처리지침 제33조(소송비용액확정 신청의 예외) 제1항 제2호: 법원에 소송비용액확정 신청하려는 본안사건의 소송비용이 그 확정 신청에 드는 행정비용(해당 비용신청 인지대, 송달료, 출장비에 한정한다)보다 적은 경우(포기)
       </div>
     </div>
   );
@@ -1429,7 +1454,6 @@ const App = () => {
                   <div className="fg"><label className="fl">환급액 (원, 차감)</label><input className="fi" type="number" value={abandonInst.refundAmt} onChange={e=>updAbandonInst({refundAmt:e.target.value})} placeholder="0"/></div>
                   <div className="fg"><label className="fl">출장비 (원)</label><input className="fi" type="number" value={abandonInst.outingAmt} onChange={e=>updAbandonInst({outingAmt:e.target.value})} placeholder="0"/></div>
                 </div>
-                <div className="fg"><label className="fl">출장비 비고</label><input className="fi" value={abandonInst.outingNote} onChange={e=>updAbandonInst({outingNote:e.target.value})}/></div>
                 <div className="frow">
                   <div className="fg"><label className="fl">변론기일 참석 횟수</label>
                     <div style={{display:'flex',alignItems:'center',gap:6}}>
