@@ -1,0 +1,1561 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>소송비용액확정신청서 및 소송비용계산서 자동화</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Malgun Gothic','맑은 고딕',Arial,sans-serif;font-size:14px;color:#333;background:#eef0f3;print-color-adjust:exact;-webkit-print-color-adjust:exact;}
+.app-header{background:#1b3a5e;color:#fff;padding:14px 24px;}
+.app-header h1{font-size:19px;font-weight:700;letter-spacing:1px;}
+.app-header p{font-size:12px;opacity:.7;margin-top:2px;}
+.mode-bar{background:#fff;padding:12px 24px;border-bottom:2px solid #dde3ea;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.mode-bar>label{font-weight:700;font-size:13px;color:#555;margin-right:4px;white-space:nowrap;}
+.mbtn{padding:9px 20px;border:2px solid #ccd3db;border-radius:8px;cursor:pointer;font-size:14px;font-weight:700;background:#fff;color:#666;transition:all .18s;font-family:inherit;}
+.mbtn:hover{border-color:#1b3a5e;color:#1b3a5e;}
+.mbtn.m-win{background:#1b3a5e;color:#fff;border-color:#1b3a5e;}
+.mbtn.m-partial{background:#d35400;color:#fff;border-color:#d35400;}
+.mbtn.m-giveup{background:#6c757d;color:#fff;border-color:#6c757d;}
+.mode-hint{margin-left:auto;font-size:12px;color:#888;background:#f4f6f8;padding:5px 10px;border-radius:6px;white-space:nowrap;}
+.inst-tabs{background:#eceff3;padding:10px 24px;border-bottom:2px solid #dde3ea;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.inst-tabs>label{font-weight:700;font-size:13px;color:#555;margin-right:4px;white-space:nowrap;}
+.itab{padding:7px 18px;border:2px solid #ccd3db;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;background:#fff;color:#555;font-family:inherit;transition:all .15s;}
+.itab:hover{border-color:#1b3a5e;color:#1b3a5e;}
+.itab.active{background:#1b3a5e;color:#fff;border-color:#1b3a5e;}
+.itab-add{padding:7px 14px;border:2px dashed #aab4c0;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;background:transparent;color:#5a7a9a;font-family:inherit;transition:all .15s;}
+.itab-add:hover{border-color:#1b3a5e;color:#1b3a5e;background:#e8f0fb;}
+.itab-del{padding:7px 12px;border:2px solid #e8d0d0;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;background:#fff7f7;color:#c0392b;font-family:inherit;}
+.itab-del:hover{background:#c0392b;color:#fff;border-color:#c0392b;}
+.layout{display:flex;min-height:calc(100vh - 150px);}
+.inp{width:440px;min-width:400px;background:#f4f6f8;padding:16px;overflow-y:auto;border-right:1px solid #dde3ea;}
+.sec{background:#fff;border-radius:8px;padding:14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.07);}
+.sec-title{font-size:13px;font-weight:700;color:#1b3a5e;margin-bottom:10px;padding-bottom:7px;border-bottom:2px solid #e8f0fb;}
+.sec-chk-title{display:flex;align-items:center;gap:8px;cursor:pointer;}
+.sec-chk-title input[type=checkbox]{width:15px;height:15px;cursor:pointer;flex-shrink:0;}
+.sec-chk-title span{font-size:13px;font-weight:700;color:#1b3a5e;}
+.sec-body{border-top:1px solid #e8f0fb;padding-top:10px;margin-top:8px;}
+.fg{margin-bottom:9px;}
+.fl{display:block;font-size:11px;color:#777;margin-bottom:3px;}
+.fi{width:100%;padding:7px 9px;border:1px solid #d5dbe2;border-radius:6px;font-size:13px;font-family:inherit;color:#333;}
+.fi:focus{outline:none;border-color:#1b3a5e;box-shadow:0 0 0 2px rgba(27,58,94,.1);}
+.frow{display:flex;gap:8px;}
+.frow .fg{flex:1;}
+.btn{padding:7px 13px;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:700;}
+.btn-p{background:#1b3a5e;color:#fff;}
+.btn-r{background:#c0392b;color:#fff;}
+.btn-s{background:#7f8c8d;color:#fff;}
+.btn-b{background:#2471a3;color:#fff;}
+.btn-o{background:#e67e22;color:#fff;}
+.qr-wrap{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;}
+.qr-btn{padding:5px 9px;background:#eaf1fb;color:#1b3a5e;border:1px solid #c0d3ea;border-radius:6px;cursor:pointer;font-size:11px;font-family:inherit;font-weight:600;}
+.qr-btn:hover{background:#1b3a5e;color:#fff;}
+.trow{background:#f8f9fa;border-radius:6px;padding:8px;margin-bottom:8px;border:1px solid #e8edf2;}
+.trow-main{display:flex;gap:5px;align-items:center;flex-wrap:wrap;}
+.trow input{padding:5px 7px;border:1px solid #d5dbe2;border-radius:5px;font-size:12px;font-family:inherit;}
+.ti-loc{flex:1;min-width:60px;}
+.ti-cost{width:80px;}
+.ti-trips{width:46px;}
+.cbadge{background:#e8f8ec;border:1px solid #a9dfbf;border-radius:6px;padding:8px 10px;margin-top:6px;font-size:12px;}
+.cbadge-row{display:flex;justify-content:space-between;color:#555;}
+.cbadge-total{display:flex;justify-content:space-between;font-weight:700;color:#1e8449;font-size:13px;border-top:1px solid #a9dfbf;padding-top:5px;margin-top:4px;}
+.ratio-row{display:flex;align-items:center;gap:8px;font-size:14px;margin:8px 0;}
+.ratio-row input{width:58px;text-align:center;padding:6px;border:1px solid #d5dbe2;border-radius:5px;font-size:14px;font-family:inherit;}
+.ratio-pct{font-weight:700;color:#d35400;}
+.total-box{background:#e8f0fb;border:2px solid #1b3a5e;border-radius:8px;padding:12px;text-align:right;}
+.total-box .big{font-size:22px;font-weight:700;color:#1b3a5e;}
+.ib{display:inline-block;background:#2471a3;color:#fff;font-size:10px;padding:2px 6px;border-radius:10px;margin-left:5px;font-weight:400;}
+.party-toggle{display:flex;gap:0;margin-bottom:12px;border:2px solid #1b3a5e;border-radius:8px;overflow:hidden;}
+.party-tab{flex:1;padding:8px 4px;text-align:center;cursor:pointer;font-size:12px;font-weight:700;background:#fff;color:#555;font-family:inherit;border:none;}
+.party-tab.active{background:#1b3a5e;color:#fff;}
+.doc-panel{flex:1;background:#d8dce0;overflow-y:auto;display:flex;flex-direction:column;align-items:center;}
+.doc-toolbar{background:#e0e4e8;padding:10px 20px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-bottom:2px solid #c8cdd2;width:100%;}
+.tbtn{padding:7px 14px;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:700;background:#1b3a5e;color:#fff;}
+.tbtn:hover{opacity:.85;}
+.tbtn-sec{background:#fff;color:#1b3a5e;border:1.5px solid #1b3a5e;}
+.tbtn-sec:hover{background:#1b3a5e;color:#fff;}
+.tsep{color:#bbb;font-size:18px;padding:0 4px;}
+.doc-screen-area{width:100%;display:flex;justify-content:center;padding:24px;}
+.doc-wrap{background:#fff;width:210mm;min-height:297mm;padding:18mm 22mm;box-shadow:0 4px 20px rgba(0,0,0,.2);resize:both;overflow:auto;}
+/* 수정 2: 테이블 색상 완화 */
+.ctbl{width:100%;border-collapse:collapse;font-size:12.5px;margin:12px 0;}
+.ctbl th{background:#4a6fa5;color:#fff;padding:7px 8px;text-align:center;border:1px solid #4a6fa5;font-size:12px;}
+.ctbl td{padding:5px 8px;border:1px solid #ccc;vertical-align:middle;}
+.ctbl .num{text-align:center;width:28px;}
+.ctbl .amt{text-align:right;font-family:'Courier New',monospace;white-space:nowrap;}
+.ctbl tr.even{background:#fafafa;}
+.ctbl tr.sub{background:#eef2f7;font-weight:700;}
+.ctbl tr.sub td{border:1px solid #7a9cc8;}
+.ctbl tr.ttl{background:#4a6fa5;color:#fff;font-weight:700;font-size:13px;}
+.ctbl tr.ttl td{border:1px solid #7a9cc8;}
+/* wctbl margin-top 조정 */
+.wctbl{width:100%;border-collapse:collapse;font-size:12px;margin-top:3em;}
+.wctbl th{background:#4a6fa5;color:#fff;padding:7px 8px;text-align:center;border:1px solid #4a6fa5;font-size:11.5px;}
+.wctbl td{padding:6px 8px;border:1px solid #ccc;vertical-align:middle;}
+.wctbl .amt{text-align:right;font-family:'Courier New',monospace;white-space:nowrap;}
+.wctbl .ctr{text-align:center;}
+.wctbl .rgt{text-align:right;padding-right:10px;}
+.wctbl tr.wsub{background:#eef2f7;font-weight:700;}
+.wctbl tr.wsub td{border:1px solid #7a9cc8;}
+.wctbl tr.wttl{background:#4a6fa5;color:#fff;font-weight:700;}
+.wctbl tr.wttl td{border:1px solid #7a9cc8;}
+.doc-title{text-align:center;font-size:22px;font-weight:700;letter-spacing:5px;margin-bottom:8px;}
+.doc-sub{text-align:center;font-size:13px;color:#555;margin-bottom:18px;}
+.doc-sec-label{font-size:13px;font-weight:700;color:#1b3a5e;padding:4px 8px;background:#eef2f7;border-left:4px solid #1b3a5e;}
+.reimb{margin-top:16px;padding:14px;background:#fff8f0;border:2.5px solid #d35400;border-radius:6px;}
+.reimb-title{font-weight:700;font-size:13px;color:#d35400;margin-bottom:8px;}
+.reimb-formula{font-size:11.5px;color:#666;margin:3px 0;}
+.reimb-big{font-size:20px;font-weight:700;color:#d35400;text-align:center;margin-top:10px;padding-top:10px;border-top:1px dashed #d35400;}
+.fn{margin-top:20px;padding-top:10px;border-top:1.5px solid #999;font-size:10.5px;color:#555;line-height:1.9;min-height:60px;}
+.fn p{margin:2px 0;}
+.abn-note{margin-top:18px;font-size:13px;line-height:1.9;}
+.pet-title-h1{text-align:center;font-size:24px;font-weight:700;margin-bottom:18px;}
+.pet-hbox{margin-bottom:24px;font-size:13.5px;line-height:2.4;}
+.pet-hrow{display:flex;gap:0;}
+.pet-hlbl{min-width:6em;font-weight:700;display:inline-block;}
+.pet-sec{text-align:center;font-size:16px;font-weight:700;letter-spacing:8px;margin:3em 0 1em;}
+.pet-para{line-height:2.1;font-size:13px;margin:0 0 0;text-indent:1em;}
+.pet-item{font-size:13px;line-height:1.9;margin:2px 0;}
+.pet-sign{text-align:right;font-size:13px;line-height:2.4;margin-bottom:36px;}
+.pet-court{font-size:20px;font-weight:700;}
+[contenteditable]:focus{outline:1px dashed #aaa;border-radius:2px;}
+.print-all-docs{display:none;}
+@media print{
+  body{background:#fff;}
+  .app-header,.mode-bar,.inst-tabs,.inp,.doc-toolbar{display:none!important;}
+  .layout{display:block;}
+  .doc-panel{background:#fff;display:block;padding:0;}
+  .doc-screen-area{display:none!important;}
+  .print-all-docs{display:block!important;}
+  .print-doc-wrap .doc-wrap{box-shadow:none;width:100%;padding:12mm 18mm;min-height:auto;page-break-after:always;}
+  body[data-print="calc"] .petition-print-area{display:none!important;}
+  body[data-print="petition"] .calc-print-area{display:none!important;}
+  body:not([data-print="abandon"]) .abandon-print-area{display:none!important;}
+  body[data-print="abandon"] .calc-print-area{display:none!important;}
+  body[data-print="abandon"] .petition-print-area{display:none!important;}
+  @page{size:A4 portrait;margin:0;}
+  .ctbl th,.wctbl th{background:#4a6fa5!important;color:#fff!important;print-color-adjust:exact;-webkit-print-color-adjust:exact;}
+  .ctbl tr.ttl td,.wctbl tr.ttl td{background:#4a6fa5!important;color:#fff!important;print-color-adjust:exact;-webkit-print-color-adjust:exact;}
+  .ctbl tr.sub td,.wctbl tr.sub td{background:#eef2f7!important;print-color-adjust:exact;-webkit-print-color-adjust:exact;}
+  .ctbl tr.even td,.wctbl tr.even td{background:#fafafa!important;print-color-adjust:exact;-webkit-print-color-adjust:exact;}
+}
+@media(max-width:900px){
+  .layout{flex-direction:column;}
+  .inp{width:100%;min-width:0;}
+  .doc-wrap{width:100%;}
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState} = React;
+
+/* ── 상수 ── */
+const MEAL = 25000;
+const ATTENDANCE = 50000;
+const SEC_RATE = 250;
+
+/* 수정 7: 변호사보수 요율표 */
+const ATTORNEY_FEE_TIERS = [
+  { max: 20000000,  base: 0,        exBase: 0,         rate: 0.10 },
+  { max: 50000000,  base: 2000000,  exBase: 20000000,  rate: 0.08 },
+  { max: 100000000, base: 4400000,  exBase: 50000000,  rate: 0.06 },
+  { max: 150000000, base: 7400000,  exBase: 100000000, rate: 0.04 },
+  { max: 200000000, base: 9400000,  exBase: 150000000, rate: 0.02 },
+  { max: 500000000, base: 10400000, exBase: 200000000, rate: 0.01 },
+  { max: Infinity,  base: 13400000, exBase: 500000000, rate: 0.005 },
+];
+// 출처: 변호사보수의 소송비용 산입에 관한 규칙 제3조
+
+const QUICK_ROUTES = [
+  {label:'수원역↔수원지법',     dep:'수원역', dest:'수원지방법원',    fare:1400},
+  {label:'수원역↔서울행정법원', dep:'수원역', dest:'서울행정법원',    fare:9500},
+  {label:'수원역↔서울중앙지법', dep:'수원역', dest:'서울중앙지방법원',fare:9500},
+];
+
+/* 수정 9: 5심까지 확장 */
+const INSTANCE_LABELS = ['1심','2심','3심','4심(파기환송심)','5심'];
+const SUB_LABELS = ['A','B','C','D','E'];
+
+/* ── 헬퍼 ── */
+const N   = s => parseInt((s+'').replace(/[^0-9]/g,'')) || 0;
+const fmt = n => { if(!n && n!==0) return '-'; const r=Math.round(n); return r===0?'-':r.toLocaleString('ko-KR')+'원'; };
+const feeCalc = soga => {
+  if(!soga||soga<=0) return 0;
+  for(const t of ATTORNEY_FEE_TIERS) if(soga<=t.max) return t.base+(soga-t.exBase)*t.rate;
+  return 0;
+};
+const naverUrl = dest => `https://map.naver.com/p/search/${encodeURIComponent(dest||'법원')}`;
+const todayStr = () => { const d=new Date(); return `${d.getFullYear()}. ${d.getMonth()+1}. ${d.getDate()}.`; };
+const getAmt = (ov, auto) => ov !== '' ? N(ov) : auto;
+const getTxt = (ov, auto) => ov !== '' ? ov : auto;
+
+/* ── 자동값 ── */
+const autoAttendAmt  = inst => N(inst.attendCnt) * ATTENDANCE;
+const autoMealAmt    = inst => N(inst.mealCnt) * MEAL;
+const autoTravelAmt  = t    => N(t.fare) * 2 * (parseInt(t.trips)||1);
+const autoAttyApplied = inst => {
+  const calc = feeCalc(N(inst.attySoga));
+  const actual = N(inst.attyActual);
+  return actual > 0 ? Math.min(calc, actual) : calc;
+};
+const autoSecAmt = inst => N(inst.sec.total_pages) * SEC_RATE;
+
+/* ── 항목 목록 생성 (정규화된 inst 받음) ── */
+const getInstItems = inst => {
+  const items = [];
+  if(inst.attendEnabled) {
+    const autoAmt = autoAttendAmt(inst);
+    const amt = getAmt(inst.attendAmt, autoAmt);
+    items.push({ key:'attend', amount:amt,
+      note: getTxt(inst.attendNote, `1회당¹⁾\n50,000원`),
+      desc: `변론기일 ${N(inst.attendCnt)}회 참석 일당\n(50,000원 × ${N(inst.attendCnt)}회 = ${amt.toLocaleString()}원)`,
+    });
+  }
+  if(inst.mealEnabled) {
+    const autoAmt = autoMealAmt(inst);
+    const amt = getAmt(inst.mealAmt, autoAmt);
+    items.push({ key:'meal', amount:amt,
+      note: getTxt(inst.mealNote, `1일²⁾\n25,000원³⁾`),
+      desc: `식대\n(25,000원 × ${N(inst.mealCnt)}회 = ${amt.toLocaleString()}원)`,
+    });
+  }
+  (inst.travels||[]).forEach((t,ti) => {
+    if(t.enabled !== false) {
+      const autoAmt = autoTravelAmt(t);
+      const amt = getAmt(t.amt, autoAmt);
+      items.push({ key:`t${ti}`, amount:amt,
+        note: getTxt(t.note, `1회당⁴⁾ (편도)\n편도 ${N(t.fare).toLocaleString()}원`),
+        desc: `왕복 여비(${t.dep||'　'} – ${t.dest||'　'})\n(${N(t.fare).toLocaleString()}원 × ${t.trips||1}회 × 2 = ${amt.toLocaleString()}원)`,
+      });
+    }
+  });
+  if(inst.attyEnabled) {
+    const autoAmt = autoAttyApplied(inst);
+    const amt = getAmt(inst.attyAmt, autoAmt);
+    items.push({ key:'atty', amount:amt,
+      note: getTxt(inst.attyNote, `변호사\n보수⁷⁾`),
+      desc: `변호사 보수\n(적용 보수액 = ${amt.toLocaleString()}원)`,
+    });
+  }
+  if(inst.secEnabled) {
+    const autoAmt = autoSecAmt(inst);
+    const amt = getAmt(inst.secAmt, autoAmt);
+    items.push({ key:'sec', amount:amt,
+      note: getTxt(inst.secNote, `장당\n250원`),
+      desc: `서기료${inst.sec_desc?`(${inst.sec_desc})`:''}\n(총 ${N(inst.sec.total_pages)}장 × 250원 = ${amt.toLocaleString()}원)`,
+    });
+  }
+  /* 본안 소송비용: 서기료 다음 */
+  if(inst.bonStampEnabled) {
+    const stamp  = N(inst.bonStamp);
+    const post   = N(inst.bonPost);
+    const refund = N(inst.bonRefund);
+    if(stamp  > 0) items.push({ key:'bonStamp',  amount: stamp,
+      note:'인지액', desc:`인지액\n(${stamp.toLocaleString()}원)` });
+    if(post   > 0) items.push({ key:'bonPost',   amount: post,
+      note:'송달료', desc:`송달료\n(${post.toLocaleString()}원)` });
+    if(refund > 0) items.push({ key:'bonRefund', amount: -refund,
+      note:'환급액', desc:`환급액\n(-${refund.toLocaleString()}원)` });
+  }
+  /* 기타비용: 본안소송비용 다음 */
+  const otherAmt = inst.otherEnabled ? N(inst.otherAmt||inst.other) : N(inst.other);
+  if((inst.otherEnabled || (!('otherEnabled' in inst))) && otherAmt > 0) {
+    items.push({ key:'other', amount: otherAmt,
+      note: inst.otherNote || '',
+      desc: '기타비용',
+    });
+  }
+  return items;
+};
+
+/* ── 승소 인스턴스 ── */
+const defaultWinInst = label => ({
+  label, num:'', court:'',
+  attendEnabled:true,  attendCnt:'',  attendAmt:'',  attendNote:'',
+  mealEnabled:true,    mealCnt:'',    mealAmt:'',    mealNote:'',
+  travels:[],
+  attyEnabled:false, attySoga:'', attyActual:'', attyAmt:'', attyNote:'',
+  secEnabled:true, sec:{total_pages:''}, sec_desc:'', secAmt:'', secNote:'',
+  otherEnabled:false, other:'',
+  bonStampEnabled:false, bonStamp:'', bonPost:'', bonRefund:'',
+  confEnabled:true,
+});
+const computeWinInst = inst => {
+  const items = getInstItems(inst);
+  const otherN = N(inst.other);
+  const subtotal = items.reduce((s,i)=>s+i.amount,0) + otherN;
+  const byKey = {};
+  items.forEach(i => { const k=i.key.startsWith('t')?'travel':i.key; byKey[k]=(byKey[k]||0)+i.amount; });
+  return { attendTotal:byKey.attend||0, mealTotal:byKey.meal||0,
+           travelTotal:byKey.travel||0, attyTotal:byKey.atty||0,
+           secTotal:byKey.sec||0, otherN, subtotal, grand:subtotal,
+           stampN:0, postN:0, appliedFee:byKey.atty||0 };
+};
+
+/* ── 일부승소 인스턴스 ── */
+const mkParty = () => ({
+  attendEnabled:true,  attendCnt:'', attendAmt:'', attendNote:'',
+  mealEnabled:true,    mealCnt:'',   mealAmt:'',   mealNote:'',
+  travels:[],
+  attyEnabled:false, attySoga:'', attyActual:'', attyAmt:'', attyNote:'',
+  secEnabled:true, sec:{total_pages:''}, sec_desc:'', secAmt:'', secNote:'',
+  otherEnabled:false, otherAmt:'', otherNote:'',
+  confEnabled:false, confStamp:'', confPost:'',
+  bonStampEnabled:false, bonStamp:'', bonPost:'', bonRefund:'',
+});
+const defaultPartialInst = label => ({
+  label, num:'', court:'',
+  p: mkParty(),  // 신청인
+  d: mkParty(),  // 피신청인
+});
+/* 정규화: partial inst의 party 데이터를 getInstItems가 받을 수 있는 형태로 변환 */
+const toWinView = (pi, party) => ({
+  label:pi.label, num:pi.num, court:pi.court,
+  attendEnabled: pi[party].attendEnabled, attendCnt: pi[party].attendCnt,
+  attendAmt: pi[party].attendAmt, attendNote: pi[party].attendNote,
+  mealEnabled: pi[party].mealEnabled, mealCnt: pi[party].mealCnt,
+  mealAmt: pi[party].mealAmt, mealNote: pi[party].mealNote,
+  travels: pi[party].travels,
+  attyEnabled: pi[party].attyEnabled, attySoga: pi[party].attySoga,
+  attyActual: pi[party].attyActual, attyAmt: pi[party].attyAmt,
+  attyNote: pi[party].attyNote,
+  secEnabled: pi[party].secEnabled, sec: pi[party].sec, sec_desc: pi[party].sec_desc,
+  secAmt: pi[party].secAmt, secNote: pi[party].secNote,
+  otherEnabled: pi[party].otherEnabled, otherAmt: pi[party].otherAmt, otherNote: pi[party].otherNote,
+  confEnabled: pi[party].confEnabled, confStamp: pi[party].confStamp, confPost: pi[party].confPost,
+  bonStampEnabled: pi[party].bonStampEnabled, bonStamp: pi[party].bonStamp,
+  bonPost: pi[party].bonPost, bonRefund: pi[party].bonRefund,
+});
+
+/* ── 포기 인스턴스 ── */
+const defaultAbandonInst = label => ({
+  label, court:'', caseNum:'', caseTitle:'',
+  stampAmt:'', postageAmt:'', refundAmt:'', outingAmt:'', outingNote:'',
+  attendCnt:'', mealCnt:'', secPages:'',
+  appStampAmt:'', appPostageAmt:'',
+});
+
+/* ── 수정 8: 각주 (6) 삭제, 7) 조건부) ── */
+const WinFootnotes = ({anyAttyEnabled, isPartial, attyData}) => {
+  let attyFnText = '변호사보수의 소송비용 산입에 관한 규칙 제3조';
+  if(anyAttyEnabled && attyData) {
+    const soga = N(attyData.soga);
+    const limit = soga > 0 ? feeCalc(soga) : 0;
+    const actual = N(attyData.actual);
+    const applied = soga > 0 ? Math.min(limit, actual) : 0;
+    if(soga > 0) {
+      attyFnText = `변호사보수의 소송비용 산입에 관한 규칙 제3조 — 소가 ${fmt(soga)} 기준 규칙상 한도액 ${fmt(limit)}, 실지급액 ${fmt(actual)}, 적용 보수액 ${fmt(applied)}`;
+    }
+  }
+  return (
+    <div className="fn">
+      <p contentEditable suppressContentEditableWarning><sup>1)</sup> 민사소송비용규칙 제3조</p>
+      <p contentEditable suppressContentEditableWarning><sup>2)</sup> 민사소송비용규칙 제3조의 2</p>
+      <p contentEditable suppressContentEditableWarning><sup>3)</sup> 법원공무원여비규칙 별표2</p>
+      <p contentEditable suppressContentEditableWarning><sup>4)</sup> 민사소송비용규칙 제3조의 2</p>
+      <p contentEditable suppressContentEditableWarning><sup>5)</sup> 소송비용액확정신청에 소요된 비용 중 재판비용에 해당하는 비용(신청서첨부인지대, 송달료)은 신청이 없는 경우에도 직권으로 소송비용에 산입하며(소송비용실무 152면), 총 신청비용을 초과하는 경우에도 이를 인정(서울고등법원 2012. 6. 12. 자 2012라75 결정)할 수 있으므로, 주소보정 등으로 추가적인 송달료가 발생될 경우 신청인이 별도의 신청취지 변경을 하지 아니하더라도 추가적인 송달료를 직권으로 산입 후 인정하여 주시기 바랍니다.</p>
+      {anyAttyEnabled && <p contentEditable suppressContentEditableWarning><sup>7)</sup> {attyFnText}</p>}
+      {isPartial && <p contentEditable suppressContentEditableWarning>⑧ 일부승소의 경우 소송비용의 부담 비율에 따라 상대방이 부담할 금액에서 자신이 상대방의 소송비용 중 부담할 금액을 공제한 나머지를 상환받는다(「민사소송법」 제101조).</p>}
+    </div>
+  );
+};
+
+/* ── 수정 8: MultiInstTable (WinDoc·PartialDoc 공통 테이블 렌더러) ── */
+const MultiInstTable = ({insts, getItemsFn, confStamp, confPost, showConf, firstTable}) => {
+  const allItems = insts.map(getItemsFn);
+  const subtotals = allItems.map(items => items.reduce((s,i)=>s+i.amount,0));
+  const bonAnTotal = subtotals.reduce((s,v)=>s+v,0);
+  const confTotal  = showConf ? N(confStamp)+N(confPost) : 0;
+  const grandTotal = bonAnTotal + confTotal;
+  const n = insts.length;
+  const bonAnLabel = SUB_LABELS.slice(0,n).join('+');
+  const confLabel  = String.fromCharCode(65+n);
+  const totalLabel = bonAnLabel + (showConf ? '+'+confLabel : '');
+  return (
+    <table className="wctbl" style={firstTable?{}:{marginTop:'1.5em'}}>
+      <colgroup><col style={{width:'20%'}}/><col style={{width:'18%'}}/><col style={{width:'42%'}}/><col style={{width:'20%'}}/></colgroup>
+      <thead><tr><th>사건번호</th><th>비용액</th><th>비용종목</th><th>비고</th></tr></thead>
+      <tbody>
+        {insts.map((inst,instIdx)=>{
+          const items = allItems[instIdx];
+          const rowspan = Math.max(1,items.length);
+          return (
+            <React.Fragment key={instIdx}>
+              {items.length===0 && (
+                <tr>
+                  <td className="ctr" style={{fontWeight:700,fontSize:12,lineHeight:1.6,verticalAlign:'middle'}}>
+                    {inst.num||'　'}<br/>
+                    {inst.court&&<span style={{fontSize:10,color:'#666',fontWeight:400,display:'block'}}>{inst.court}</span>}
+                    <span style={{fontSize:11,color:'#4a6fa5',display:'block',marginTop:2}}>[{inst.label}]</span>
+                  </td>
+                  <td colSpan="3" style={{textAlign:'center',color:'#aaa',fontSize:11}}>항목 없음</td>
+                </tr>
+              )}
+              {items.map((item,itemIdx)=>(
+                <tr key={item.key}>
+                  {itemIdx===0&&(
+                    <td rowSpan={rowspan} contentEditable suppressContentEditableWarning className="ctr" style={{fontWeight:700,fontSize:12,lineHeight:1.6,verticalAlign:'middle'}}>
+                      {inst.num||'　'}<br/>
+                      {inst.court&&<span style={{fontSize:10,color:'#666',fontWeight:400,display:'block'}}>{inst.court}</span>}
+                      <span style={{fontSize:11,color:'#4a6fa5',display:'block',marginTop:2}}>[{inst.label}]</span>
+                    </td>
+                  )}
+                  <td contentEditable suppressContentEditableWarning className="amt">{fmt(item.amount)}</td>
+                  <td contentEditable suppressContentEditableWarning style={{whiteSpace:'pre-line',fontSize:11,lineHeight:1.6}}>{item.desc}</td>
+                  <td contentEditable suppressContentEditableWarning
+                      style={{whiteSpace:'pre-line',fontSize:10,textAlign:'center',lineHeight:1.5}}>
+                    {item.note}
+                  </td>
+                </tr>
+              ))}
+              <tr className="wsub">
+                <td contentEditable suppressContentEditableWarning className="rgt">소계 ({SUB_LABELS[instIdx]})</td>
+                <td contentEditable suppressContentEditableWarning className="amt">{fmt(subtotals[instIdx])}</td>
+                <td colSpan="2"></td>
+              </tr>
+            </React.Fragment>
+          );
+        })}
+        <tr className="wsub">
+          <td contentEditable suppressContentEditableWarning className="rgt">본안사건 소계 ({bonAnLabel})</td>
+          <td contentEditable suppressContentEditableWarning className="amt">{fmt(bonAnTotal)}</td>
+          <td colSpan="2"></td>
+        </tr>
+        {showConf && (
+          <>
+            <tr>
+              <td contentEditable suppressContentEditableWarning rowSpan="2" className="ctr" style={{fontWeight:700,fontSize:12,lineHeight:1.7,verticalAlign:'middle'}}>소송비용확정<br/>신청비용</td>
+              <td contentEditable suppressContentEditableWarning className="amt">{fmt(N(confStamp))}</td>
+              <td contentEditable suppressContentEditableWarning style={{fontSize:11}}>소송비용액확정신청 인지대</td>
+              <td contentEditable suppressContentEditableWarning></td>
+            </tr>
+            <tr>
+              <td contentEditable suppressContentEditableWarning className="amt">{fmt(N(confPost))}</td>
+              <td contentEditable suppressContentEditableWarning style={{fontSize:11}}>소송비용액확정신청 송달료<sup>5)</sup></td>
+              <td contentEditable suppressContentEditableWarning></td>
+            </tr>
+            <tr className="wsub">
+              <td contentEditable suppressContentEditableWarning className="rgt">신청비용 소계 ({confLabel})</td>
+              <td contentEditable suppressContentEditableWarning className="amt">{fmt(confTotal)}</td>
+              <td colSpan="2"></td>
+            </tr>
+          </>
+        )}
+        {/* 수정 8③: 총합계 행 2·3번 셀 colspan=2 병합 */}
+        <tr className="wttl">
+          <td contentEditable suppressContentEditableWarning className="rgt">총합계 ({totalLabel})</td>
+          <td contentEditable suppressContentEditableWarning colSpan="2" style={{textAlign:'center'}}>{fmt(grandTotal)}</td>
+          <td contentEditable suppressContentEditableWarning></td>
+        </tr>
+      </tbody>
+    </table>
+  );
+};
+
+/* ── WinDoc (수정 1·3·4·8) ── */
+const WinDoc = ({winInsts, confStamp, confPost}) => {
+  const anyAttyEnabled = winInsts.some(i=>i.attyEnabled);
+  const firstAtty = winInsts.find(i=>i.attyEnabled);
+  const attyData = firstAtty ? {soga: firstAtty.attySoga, actual: firstAtty.attyActual} : null;
+  const showConf = winInsts.some(i=>i.confEnabled);
+  return (
+    <div>
+      <div className="doc-title" contentEditable suppressContentEditableWarning>소 송 비 용 계 산 서</div>
+      <MultiInstTable insts={winInsts} getItemsFn={inst=>getInstItems(inst)}
+        confStamp={confStamp} confPost={confPost} showConf={showConf} firstTable={true}/>
+      <WinFootnotes anyAttyEnabled={anyAttyEnabled} isPartial={false} attyData={attyData}/>
+    </div>
+  );
+};
+
+/* ── 수정 11: PartialDoc (WinDoc 구조로 완전 교체) ── */
+const PartialDoc = ({partialInsts, pRatioNum, pRatioDen, calcMode='both', bonStamp='', bonPost=''}) => {
+  const rNum = parseInt(pRatioNum)||0;
+  const rDen = parseInt(pRatioDen)||10;
+  const showP = calcMode==='both' || calcMode==='p';
+  const showD = calcMode==='both' || calcMode==='d';
+  const pTotalAll = partialInsts.reduce((s,pi)=>{
+    const items = getInstItems(toWinView(pi,'p'));
+    return s + items.reduce((ss,i)=>ss+i.amount,0);
+  },0);
+  const dTotalAll = partialInsts.reduce((s,pi)=>{
+    const items = getInstItems(toWinView(pi,'d'));
+    return s + items.reduce((ss,i)=>ss+i.amount,0);
+  },0);
+  const bonTotal = N(bonStamp)+N(bonPost);
+  const reimbursement = (rNum/rDen)*pTotalAll - ((rDen-rNum)/rDen)*dTotalAll;
+  const anyAttyEnabled = partialInsts.some(pi=>pi.p.attyEnabled||pi.d.attyEnabled);
+  return (
+    <div>
+      <div className="doc-title" contentEditable suppressContentEditableWarning>소 송 비 용 계 산 서</div>
+      {/* 본안 소송비용 표시 */}
+      {bonTotal > 0 && (
+        <div style={{margin:'8px 0',padding:'8px 12px',background:'#f5f7fa',border:'1px solid #ccd3db',borderRadius:5,fontSize:12}}>
+          <strong>본안 소송비용</strong>
+          <span style={{marginLeft:16}}>인지액: {fmt(N(bonStamp))}</span>
+          <span style={{marginLeft:16}}>송달료: {fmt(N(bonPost))}</span>
+          <span style={{marginLeft:16,fontWeight:700}}>소계: {fmt(bonTotal)}</span>
+        </div>
+      )}
+      {showP && (
+        <>
+          <div className="doc-sec-label" style={{marginTop:'4.5em'}}>신청인 소송비용</div>
+          <MultiInstTable insts={partialInsts} getItemsFn={pi=>getInstItems(toWinView(pi,'p'))}
+            showConf={partialInsts.some(pi=>pi.p.confEnabled)}
+            confStamp={partialInsts.reduce((s,pi)=>s+N(pi.p.confStamp),0).toString()}
+            confPost={partialInsts.reduce((s,pi)=>s+N(pi.p.confPost),0).toString()}
+            firstTable={false}/>
+        </>
+      )}
+      {showD && (
+        <>
+          <div className="doc-sec-label" style={{marginTop:'1.5em'}}>피신청인 소송비용</div>
+          <MultiInstTable insts={partialInsts} getItemsFn={pi=>getInstItems(toWinView(pi,'d'))}
+            showConf={partialInsts.some(pi=>pi.d.confEnabled)}
+            confStamp={partialInsts.reduce((s,pi)=>s+N(pi.d.confStamp),0).toString()}
+            confPost={partialInsts.reduce((s,pi)=>s+N(pi.d.confPost),0).toString()}
+            firstTable={false}/>
+        </>
+      )}
+      {calcMode==='both' && (
+        <>
+          <div style={{margin:'14px 0',padding:'12px',background:'#f5f7fa',border:'1px solid #ccd3db',borderRadius:5,fontSize:13}}>
+            <strong>소송비용 부담 비율</strong>
+            <div style={{marginTop:6}}>
+              신청인 부담: {rDen-rNum}/{rDen} ({(((rDen-rNum)/rDen)*100).toFixed(1)}%)&nbsp;&nbsp;&nbsp;
+              피신청인 부담: {rNum}/{rDen} ({((rNum/rDen)*100).toFixed(1)}%)
+            </div>
+          </div>
+          <div className="reimb">
+            <div className="reimb-title">피신청인이 신청인에게 상환하여야 할 금액⑧</div>
+            <div className="reimb-formula">= 피신청인 부담비율 × 신청인 소송비용 &minus; 신청인 부담비율 × 피신청인 소송비용</div>
+            <div className="reimb-formula">= {rNum}/{rDen} × {fmt(pTotalAll)} &minus; {rDen-rNum}/{rDen} × {fmt(dTotalAll)}</div>
+            <div className="reimb-formula">= {fmt((rNum/rDen)*pTotalAll)} &minus; {fmt(((rDen-rNum)/rDen)*dTotalAll)}</div>
+            <div className="reimb-big">
+              {reimbursement>=0
+                ?`금 ${fmt(Math.round(Math.abs(reimbursement)))}`
+                :`금 ${fmt(Math.round(Math.abs(reimbursement)))}  ※ 신청인 → 피신청인 지급`}
+            </div>
+          </div>
+        </>
+      )}
+      {calcMode==='p' && (
+        <>
+          <div style={{margin:'14px 0',padding:'12px',background:'#f5f7fa',border:'1px solid #ccd3db',borderRadius:5,fontSize:13}}>
+            <strong>소송비용 부담 비율</strong>
+            <div style={{marginTop:6}}>
+              신청인 부담: {rDen-rNum}/{rDen} ({(((rDen-rNum)/rDen)*100).toFixed(1)}%)&nbsp;&nbsp;&nbsp;
+              피신청인 부담: {rNum}/{rDen} ({((rNum/rDen)*100).toFixed(1)}%)
+            </div>
+          </div>
+          <div className="reimb">
+            <div className="reimb-title">신청인 소송비용 중 피신청인이 부담할 금액⑧</div>
+            <div className="reimb-formula">= 피신청인 부담비율 × 신청인 소송비용</div>
+            <div className="reimb-formula">= {rNum}/{rDen} × {fmt(pTotalAll)}</div>
+            <div className="reimb-big">{`금 ${fmt(Math.round((rNum/rDen)*pTotalAll))}`}</div>
+          </div>
+        </>
+      )}
+      {calcMode==='d' && (
+        <>
+          <div style={{margin:'14px 0',padding:'12px',background:'#f5f7fa',border:'1px solid #ccd3db',borderRadius:5,fontSize:13}}>
+            <strong>소송비용 부담 비율</strong>
+            <div style={{marginTop:6}}>
+              신청인 부담: {rDen-rNum}/{rDen} ({(((rDen-rNum)/rDen)*100).toFixed(1)}%)&nbsp;&nbsp;&nbsp;
+              피신청인 부담: {rNum}/{rDen} ({((rNum/rDen)*100).toFixed(1)}%)
+            </div>
+          </div>
+          <div className="reimb">
+            <div className="reimb-title">피신청인 소송비용 중 신청인이 부담할 금액⑧</div>
+            <div className="reimb-formula">= 신청인 부담비율 × 피신청인 소송비용</div>
+            <div className="reimb-formula">= {rDen-rNum}/{rDen} × {fmt(dTotalAll)}</div>
+            <div className="reimb-big">{`금 ${fmt(Math.round(((rDen-rNum)/rDen)*dTotalAll))}`}</div>
+          </div>
+        </>
+      )}
+      <WinFootnotes anyAttyEnabled={anyAttyEnabled} isPartial={calcMode==='both'} attyData={null}/>
+    </div>
+  );
+};
+
+/* ── 수정 10: AbandonDoc (다중 심급, 수정 4 적용) ── */
+const AbandonDoc = ({inst}) => {
+  const stampN   = N(inst.stampAmt);
+  const postageN = N(inst.postageAmt);
+  const refundN  = N(inst.refundAmt);
+  const outingN  = N(inst.outingAmt);
+  const attendN  = N(inst.attendCnt) * ATTENDANCE;
+  const mealN    = N(inst.mealCnt) * MEAL;
+  const secN     = N(inst.secPages) * SEC_RATE;
+  const appStN   = N(inst.appStampAmt);
+  const appPoN   = N(inst.appPostageAmt);
+  const bonSub   = stampN + postageN - refundN + outingN + attendN + mealN + secN;
+  const appSub   = appStN + appPoN;
+  /* 수정 10: 비교 기호 자동 판단 */
+  const cmpSymbol = bonSub > appSub ? '&gt;' : bonSub < appSub ? '&lt;' : '=';
+  const bonRowCount = 4 + (attendN>0?1:0) + (mealN>0?1:0) + (secN>0?1:0) + 1; // 기본4 + 조건3 + 소계1
+  return (
+    <div>
+      <div className="doc-title">소 송 비 용 계 산 서</div>
+      {/* 수정 4: margin-top 4.5em */}
+      <div style={{fontSize:13,marginTop:'4.5em',marginBottom:8}}>
+        ○ 본안사건: {inst.court} {inst.caseNum} {inst.caseTitle}
+      </div>
+      <table className="ctbl" style={{marginTop:8}}>
+        <colgroup><col style={{width:'18%'}}/><col style={{width:'44%'}}/><col style={{width:'22%'}}/><col style={{width:'16%'}}/></colgroup>
+        <thead><tr><th>심 급</th><th>비 용 목 록</th><th>비 용 액</th><th>비 고</th></tr></thead>
+        <tbody>
+          <tr>
+            <td rowSpan={bonRowCount} className="ctr" style={{fontWeight:700,verticalAlign:'middle',lineHeight:1.8}}>본안사건<br/>소송비용</td>
+            <td>인지액</td><td className="amt">{stampN>0?fmt(stampN):'-'}</td><td contentEditable suppressContentEditableWarning></td>
+          </tr>
+          <tr className="even"><td>송달료</td><td className="amt">{postageN>0?fmt(postageN):'-'}</td><td contentEditable suppressContentEditableWarning></td></tr>
+          <tr><td>환급액</td><td className="amt">{refundN>0?`-${refundN.toLocaleString()}원`:'-'}</td><td contentEditable suppressContentEditableWarning></td></tr>
+          <tr className="even"><td>출장비</td><td className="amt">{outingN>0?fmt(outingN):'-'}</td>
+            <td contentEditable suppressContentEditableWarning style={{fontSize:12}}>{inst.outingNote||''}</td>
+          </tr>
+          {attendN>0&&<tr><td style={{fontSize:12}}>변론기일 참석 일당 ({N(inst.attendCnt)}회)</td><td className="amt">{fmt(attendN)}</td><td contentEditable suppressContentEditableWarning style={{fontSize:11}}>50,000원 × {N(inst.attendCnt)}회</td></tr>}
+          {mealN>0&&<tr className="even"><td style={{fontSize:12}}>식대 ({N(inst.mealCnt)}회)</td><td className="amt">{fmt(mealN)}</td><td contentEditable suppressContentEditableWarning style={{fontSize:11}}>25,000원 × {N(inst.mealCnt)}회</td></tr>}
+          {secN>0&&<tr><td style={{fontSize:12}}>서기료 ({N(inst.secPages)}장)</td><td className="amt">{fmt(secN)}</td><td contentEditable suppressContentEditableWarning style={{fontSize:11}}>250원 × {N(inst.secPages)}장</td></tr>}
+          <tr className="sub"><td style={{textAlign:'center'}}>소계</td><td className="amt">{fmt(bonSub)}</td><td></td></tr>
+          <tr>
+            <td rowSpan="3" className="ctr" style={{fontWeight:700,verticalAlign:'middle',lineHeight:1.8}}>신청사건<br/>소송비용</td>
+            <td style={{fontSize:12}}>소송비용액확정결정신청 인지대</td><td className="amt">{appStN>0?fmt(appStN):'-'}</td><td contentEditable suppressContentEditableWarning></td>
+          </tr>
+          <tr className="even"><td style={{fontSize:12}}>소송비용액확정결정신청 송달료</td><td className="amt">{appPoN>0?fmt(appPoN):'-'}</td><td contentEditable suppressContentEditableWarning></td></tr>
+          <tr className="sub"><td style={{textAlign:'center'}}>소계</td><td className="amt">{fmt(appSub)}</td><td></td></tr>
+          <tr>
+            <td colSpan="4" style={{textAlign:'center',padding:'10px 8px',fontWeight:600,fontSize:12.5}}
+              dangerouslySetInnerHTML={{__html:`공단 청구가능 소송비용(${fmt(bonSub)}) ${cmpSymbol} 소송비용 신청 행정비용(${fmt(appSub)})`}}/>
+          </tr>
+        </tbody>
+      </table>
+      <div className="abn-note" style={{fontSize:11}} contentEditable suppressContentEditableWarning>
+        ○ 관련지침<br/>
+        &nbsp;&nbsp;- 소송사무처리지침 제33조(소송비용액확정 신청의 예외) 제1항 제2호: 법원에 소송비용액확정 신청하려는 본안사건의 소송비용이 그 확정 신청에 드는 행정비용(해당 비용신청 인지대, 송달료, 출장비에 한정한다)보다 적은 경우(포기)
+      </div>
+    </div>
+  );
+};
+
+/* ── 수정 12: PetitionDoc ── */
+const PetitionDoc = ({insts, grandTotal, petition}) => {
+  const d = new Date(); const yr = d.getFullYear(); const mo = d.getMonth()+1;
+  const instStr = insts.map(i=>[i.court,i.num].filter(Boolean).join(' ')).filter(Boolean).join(', ');
+  const submitCourt = petition.submitCourt || (insts[0]?.court||'');
+  const caseTitle = petition.showCaseTitle !== false ? petition.caseTitle : '';
+  const writeDate = petition.writeDate || `${yr}. ${mo}.`;
+  const gap3 = {marginTop:'3em'};
+  return (
+    <div>
+      {/* 1페이지 */}
+      <div>
+        {petition.showDocTitle !== false && (
+          <div className="pet-title-h1" contentEditable suppressContentEditableWarning>
+            {petition.docTitle||'소송비용액확정신청서'}
+          </div>
+        )}
+        <div className="pet-hbox">
+          {petition.showCaseHeader !== false && (
+            <div className="pet-hrow"><span contentEditable suppressContentEditableWarning className="pet-hlbl">사　건</span>
+              <span contentEditable suppressContentEditableWarning>{petition.caseHeader}</span>
+            </div>
+          )}
+          {petition.showApplicant !== false && (
+            <div className="pet-hrow"><span contentEditable suppressContentEditableWarning className="pet-hlbl">신　청　인</span>
+              <span contentEditable suppressContentEditableWarning>{petition.applicant}</span>
+            </div>
+          )}
+          {(petition.applicantAddresses||[]).map((addr,i)=>(
+            <div key={i} className="pet-hrow"><span className="pet-hlbl" style={{minWidth:'6em',display:'inline-block'}}></span>
+              <span contentEditable suppressContentEditableWarning style={{fontSize:12,color:'#444'}}>{addr}</span>
+            </div>
+          ))}
+          {petition.showRespondent !== false && (
+            <div className="pet-hrow"><span contentEditable suppressContentEditableWarning className="pet-hlbl">피신청인&nbsp;&nbsp;</span>
+              <span contentEditable suppressContentEditableWarning>{petition.respondent}</span>
+            </div>
+          )}
+          {(petition.respondentAddresses||[]).map((addr,i)=>(
+            <div key={i} className="pet-hrow"><span className="pet-hlbl" style={{minWidth:'6em',display:'inline-block'}}></span>
+              <span contentEditable suppressContentEditableWarning style={{fontSize:12,color:'#444'}}>{addr}</span>
+            </div>
+          ))}
+        </div>
+        {petition.showClaim !== false && (
+          <div style={gap3}>
+            <p className="pet-sec" contentEditable suppressContentEditableWarning>신　청　취　지</p>
+            <p className="pet-para" contentEditable suppressContentEditableWarning>
+              &nbsp;&nbsp;위 당사자 사이의 {instStr} {caseTitle} 사건의 판결에 의하여 피신청인이 신청인에게 상환하여야 할 소송비용액은 {Math.round(grandTotal).toLocaleString()}원임을 확정한다.
+            </p>
+          </div>
+        )}
+        {petition.showReason !== false && (
+          <div style={gap3}>
+            <p className="pet-sec" contentEditable suppressContentEditableWarning>신　청　이　유</p>
+            <p className="pet-para" contentEditable suppressContentEditableWarning>
+              &nbsp;&nbsp;신청인과 피신청인 사이의 {instStr} {caseTitle} 사건에 대한 신청인의 승소판결이 {petition.verdictDate} 자로 확정되었는바, 피신청인이 부담하여야 할 소송비용액을 확정 받고자 이 신청에 이른 것입니다.
+            </p>
+          </div>
+        )}
+        {petition.showEvidence !== false && (
+          <div style={gap3}>
+            <p className="pet-sec" contentEditable suppressContentEditableWarning>소　명　방　법</p>
+            {insts.map((inst,i)=>(
+              <p key={i} className="pet-item" contentEditable suppressContentEditableWarning>
+                {i+1}. 소갑 제{i+1}호증&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{inst.label} 판결문
+              </p>
+            ))}
+            <p className="pet-item" contentEditable suppressContentEditableWarning style={{marginBottom:0}}>
+              {insts.length+1}. 소갑 제{insts.length+1}호증&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;대법원 나의사건 검색화면 및 확정증명원
+            </p>
+          </div>
+        )}
+        {petition.showAttach !== false && (
+          <div style={gap3}>
+            <p className="pet-sec" contentEditable suppressContentEditableWarning>첨　부　서　류</p>
+            <p className="pet-item" contentEditable suppressContentEditableWarning>1. 소송비용계산서</p>
+          </div>
+        )}
+      </div>
+      {/* 2페이지 */}
+      <div style={{pageBreakBefore:'always',paddingTop:'28mm',textAlign:'center'}}>
+        <p contentEditable suppressContentEditableWarning style={{fontSize:13,marginBottom:'3em'}}>
+          {writeDate}
+        </p>
+      </div>
+      <div style={{textAlign:'right'}}>
+        <div className="pet-sign" contentEditable suppressContentEditableWarning>
+          위 신청인&nbsp;&nbsp;국민건강보험공단<br/>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{petition.agentTitle}&nbsp;&nbsp;{petition.agentName}
+        </div>
+      </div>
+      <p className="pet-court" contentEditable suppressContentEditableWarning>
+        {submitCourt}&nbsp;&nbsp;귀중
+      </p>
+    </div>
+  );
+};
+
+/* ── 입력 항목 UI 헬퍼 (각 항목 렌더) ── */
+const ItemSection = ({label, enabled, onToggle, children}) => (
+  <div className="sec" style={{marginBottom:8}}>
+    <div className="sec-chk-title" onClick={onToggle}>
+      <input type="checkbox" checked={enabled} readOnly/>
+      <span>{label}</span>
+    </div>
+    {enabled && <div className="sec-body">{children}</div>}
+  </div>
+);
+
+/* ── 여비 항목 렌더 ── */
+const TravelSection = ({travels, onAdd, onRemove, onUpdateField, quickAdd}) => (
+  <div className="sec" style={{marginBottom:8}}>
+    <div className="sec-title" style={{marginBottom:8}}>🚌 왕복 여비</div>
+    <div style={{fontSize:12,color:'#666',marginBottom:6}}>자주 가는 경로:</div>
+    <div className="qr-wrap">
+      {QUICK_ROUTES.map((r,i)=>(
+        <button key={i} className="qr-btn" onClick={()=>quickAdd(r.dep,r.dest,r.fare)}>＋ {r.label}</button>
+      ))}
+    </div>
+    {travels.map((t,ti)=>{
+      const autoAmt = autoTravelAmt(t);
+      return (
+        <div key={ti} className="trow">
+          <div className="trow-main">
+            <input type="checkbox" checked={t.enabled!==false} onChange={e=>onUpdateField(ti,'enabled',e.target.checked)} style={{width:14,height:14}}/>
+            <input className="ti-loc" value={t.dep} onChange={e=>onUpdateField(ti,'dep',e.target.value)} placeholder="출발지"/>
+            <span style={{color:'#888'}}>↔</span>
+            <input className="ti-loc" value={t.dest} onChange={e=>onUpdateField(ti,'dest',e.target.value)} placeholder="목적지"/>
+            <input className="ti-cost" type="number" value={t.fare} onChange={e=>onUpdateField(ti,'fare',e.target.value)} placeholder="편도(원)"/>
+            <input className="ti-trips" type="number" min="1" value={t.trips} onChange={e=>onUpdateField(ti,'trips',e.target.value)} placeholder="회"/>
+            <button className="btn btn-r" style={{padding:'4px 7px'}} onClick={()=>onRemove(ti)}>✕</button>
+            <a href={naverUrl(t.dest||t.dep)} target="_blank" rel="noopener noreferrer" style={{textDecoration:'none'}}>
+              <button className="btn btn-b" style={{padding:'4px 7px',fontSize:11}} type="button">지도</button>
+            </a>
+          </div>
+          {t.enabled!==false && (
+            <div className="frow" style={{marginTop:6,alignItems:'flex-end',gap:4}}>
+              <div className="fg">
+                <label className="fl">금액</label>
+                <input className="fi" type="number" value={t.amt!==''?t.amt:autoAmt||''} onChange={e=>onUpdateField(ti,'amt',e.target.value)} placeholder={String(autoAmt)}/>
+              </div>
+              <div className="fg">
+                <label className="fl">비고</label>
+                <textarea className="fi" rows="2" style={{resize:'none',fontSize:12}}
+                  value={t.note!==''?t.note:`1회당⁴⁾ (편도)\n편도 ${N(t.fare).toLocaleString()}원`}
+                  onChange={e=>onUpdateField(ti,'note',e.target.value)}/>
+              </div>
+              <button className="btn btn-s" style={{padding:'7px 10px',flexShrink:0,marginBottom:1}}
+                onClick={()=>{onUpdateField(ti,'amt','');onUpdateField(ti,'note','');}}>↺</button>
+            </div>
+          )}
+        </div>
+      );
+    })}
+    <button className="btn btn-s" style={{marginTop:4,fontSize:12}} onClick={()=>onAdd('','','')}>＋ 경로 직접 추가</button>
+  </div>
+);
+
+/* ── 소송비용확정신청서 입력 섹션 ── */
+const PetitionInput = ({petition, onUpdate, firstInstCourt}) => {
+  const addAddr = (party) => {
+    const key = party==='p'?'applicantAddresses':'respondentAddresses';
+    onUpdate(key, [...(petition[key]||[]), '']);
+  };
+  const removeAddr = (party, idx) => {
+    const key = party==='p'?'applicantAddresses':'respondentAddresses';
+    onUpdate(key, (petition[key]||[]).filter((_,i)=>i!==idx));
+  };
+  const updateAddr = (party, idx, val) => {
+    const key = party==='p'?'applicantAddresses':'respondentAddresses';
+    const arr = [...(petition[key]||[])];
+    arr[idx] = val;
+    onUpdate(key, arr);
+  };
+  return (
+  <div className="sec" style={{borderLeft:'4px solid #2471a3'}}>
+    <div className="sec-title">📄 소송비용액확정신청서</div>
+    {/* 당사자 정보 - 최상단 */}
+    <div style={{background:'#eef6ff',borderRadius:6,padding:'10px 12px',marginBottom:12,border:'1px solid #c5d9f0'}}>
+      <div style={{fontSize:12,fontWeight:700,color:'#1b3a5e',marginBottom:8}}>👤 당사자 정보</div>
+      <div className="frow">
+        <div className="fg"><label className="fl">신청인</label>
+          <input className="fi" value={petition.applicant} onChange={e=>onUpdate('applicant',e.target.value)} placeholder="국민건강보험공단"/></div>
+        <div className="fg"><label className="fl">피신청인</label>
+          <input className="fi" value={petition.respondent} onChange={e=>onUpdate('respondent',e.target.value)} placeholder="홍길동"/></div>
+      </div>
+      {/* 신청인 주소 */}
+      <div style={{marginTop:8}}>
+        <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:4}}>
+          <span style={{fontSize:11,color:'#555',fontWeight:700}}>신청인 주소</span>
+          <button className="btn btn-p" style={{padding:'2px 8px',fontSize:11}} onClick={()=>addAddr('p')}>+ 추가</button>
+        </div>
+        {(petition.applicantAddresses||[]).map((addr,i)=>(
+          <div key={i} style={{display:'flex',gap:4,marginBottom:4,alignItems:'center'}}>
+            <input type="checkbox" defaultChecked onChange={e=>{if(!e.target.checked) removeAddr('p',i);}} style={{width:14,height:14,flexShrink:0}}/>
+            <input className="fi" style={{flex:1}} value={addr} onChange={e=>updateAddr('p',i,e.target.value)} placeholder={`신청인 주소 ${i+1}`}/>
+          </div>
+        ))}
+      </div>
+      {/* 피신청인 주소 */}
+      <div style={{marginTop:8}}>
+        <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:4}}>
+          <span style={{fontSize:11,color:'#555',fontWeight:700}}>피신청인 주소</span>
+          <button className="btn btn-p" style={{padding:'2px 8px',fontSize:11}} onClick={()=>addAddr('d')}>+ 추가</button>
+        </div>
+        {(petition.respondentAddresses||[]).map((addr,i)=>(
+          <div key={i} style={{display:'flex',gap:4,marginBottom:4,alignItems:'center'}}>
+            <input type="checkbox" defaultChecked onChange={e=>{if(!e.target.checked) removeAddr('d',i);}} style={{width:14,height:14,flexShrink:0}}/>
+            <input className="fi" style={{flex:1}} value={addr} onChange={e=>updateAddr('d',i,e.target.value)} placeholder={`피신청인 주소 ${i+1}`}/>
+          </div>
+        ))}
+      </div>
+    </div>
+    {/* 헤더 항목 표시 여부 */}
+    <div style={{background:'#f4f6f8',borderRadius:6,padding:'8px 10px',marginBottom:10}}>
+      <div style={{fontSize:11,fontWeight:700,color:'#555',marginBottom:6}}>헤더 표시 항목 선택:</div>
+      {[
+        {key:'showDocTitle',   label:'신청서 제목'},
+        {key:'showCaseTitle',  label:'사건명 (본문용)'},
+        {key:'showApplicant',  label:'신청인 이름'},
+        {key:'showRespondent', label:'피신청인 이름'},
+      ].map(({key,label})=>(
+        <label key={key} style={{display:'flex',alignItems:'center',gap:6,fontSize:12,marginBottom:3,cursor:'pointer'}}>
+          <input type="checkbox" checked={petition[key]!==false} onChange={e=>onUpdate(key,e.target.checked)}/>
+          {label}
+        </label>
+      ))}
+    </div>
+    <div className="fg"><label className="fl">신청서 제목</label>
+      <input className="fi" value={petition.docTitle} onChange={e=>onUpdate('docTitle',e.target.value)} placeholder="소송비용액확정신청서"/>
+    </div>
+    <div className="fg"><label className="fl">사건명 (본문용)</label>
+      <input className="fi" value={petition.caseTitle} onChange={e=>onUpdate('caseTitle',e.target.value)} placeholder="예: 장기요양급여비용 환수결정 취소청구의 소"/>
+    </div>
+    <div className="fg"><label className="fl">판결 확정일</label>
+      <input className="fi" value={petition.verdictDate} onChange={e=>onUpdate('verdictDate',e.target.value)} placeholder="예: 2024. 3. 15."/>
+    </div>
+    <div className="fg"><label className="fl">신청서 작성일</label>
+      <input className="fi" value={petition.writeDate||''} onChange={e=>onUpdate('writeDate',e.target.value)} placeholder="예: 2025. 12."/>
+    </div>
+    <div className="frow">
+      <div className="fg"><label className="fl">소송수행자/대리인 직함</label>
+        <input className="fi" value={petition.agentTitle} onChange={e=>onUpdate('agentTitle',e.target.value)} placeholder="소송수행자"/></div>
+      <div className="fg"><label className="fl">이름</label>
+        <input className="fi" value={petition.agentName} onChange={e=>onUpdate('agentName',e.target.value)}/></div>
+    </div>
+    <div className="fg"><label className="fl">제출 법원 (기본: 1심 법원명)</label>
+      <input className="fi" value={petition.submitCourt || firstInstCourt || ''} onChange={e=>onUpdate('submitCourt',e.target.value)} placeholder={firstInstCourt||'서울행정법원'}/>
+    </div>
+    {/* 본문 항목 표시 여부 */}
+    <div style={{background:'#f4f6f8',borderRadius:6,padding:'8px 10px',marginTop:10}}>
+      <div style={{fontSize:11,fontWeight:700,color:'#555',marginBottom:6}}>본문 포함 항목 선택:</div>
+      {[
+        {key:'showClaim',    label:'신청취지'},
+        {key:'showReason',   label:'신청이유'},
+        {key:'showEvidence', label:'소명방법'},
+        {key:'showAttach',   label:'첨부서류'},
+      ].map(({key,label})=>(
+        <label key={key} style={{display:'flex',alignItems:'center',gap:6,fontSize:12,marginBottom:3,cursor:'pointer'}}>
+          <input type="checkbox" checked={petition[key]!==false} onChange={e=>onUpdate(key,e.target.checked)}/>
+          {label}
+        </label>
+      ))}
+    </div>
+  </div>
+  );
+};
+
+/* ══════════════════ 메인 앱 ══════════════════ */
+const App = () => {
+  const [globalMode, setGlobalMode] = useState('승소');
+  const [showPetition, setShowPetition] = useState(false);
+  const todayWriteDate = (() => { const d=new Date(); return `${d.getFullYear()}. ${d.getMonth()+1}.`; })();
+  const [petitionKey,  setPetitionKey]  = useState(0);
+  const [petition, setPetition] = useState({
+    docTitle:'소송비용액확정신청서', caseHeader:'소송비용액확정신청', caseTitle:'',
+    applicant:'', respondent:'', verdictDate:'', agentTitle:'', agentName:'', submitCourt:'',
+    writeDate: todayWriteDate,
+    applicantAddresses: [],
+    respondentAddresses: [],
+    showDocTitle:true, showCaseHeader:false, showCaseTitle:true,
+    showApplicant:true, showRespondent:true,
+    showClaim:true, showReason:true, showEvidence:true, showAttach:true,
+  });
+  const updPetition = (k,v) => setPetition(p=>({...p,[k]:v}));
+
+  /* 승소 */
+  const [winInsts,     setWinInsts]     = useState([defaultWinInst('1심')]);
+  const [winActiveIdx, setWinActiveIdx] = useState(0);
+  const [confStamp, setConfStamp] = useState('');
+  const [confPost,  setConfPost]  = useState('');
+
+  /* 일부승소 */
+  const [partialInsts,     setPartialInsts]     = useState([defaultPartialInst('1심')]);
+  const [partialActiveIdx, setPartialActiveIdx] = useState(0);
+  const [pRatioNum, setPRatioNum] = useState('7');
+  const [pRatioDen, setPRatioDen] = useState('10');
+  const [partialParty, setPartialParty] = useState('p'); // 'p' | 'd'
+  const [partialCalcMode, setPartialCalcMode] = useState('both'); // 'p' | 'd' | 'both'
+  const [partialBonStamp, setPartialBonStamp] = useState('');
+  const [partialBonPost,  setPartialBonPost]  = useState('');
+
+  /* 포기 */
+  const [abandonInsts,     setAbandonInsts]     = useState([defaultAbandonInst('1심')]);
+  const [abandonActiveIdx, setAbandonActiveIdx] = useState(0);
+
+  const isGlobalWin    = globalMode === '승소';
+  const isPartialMode  = globalMode === '일부승소(포기)';
+  const isGiveup       = globalMode === '포기';
+
+  /* ── 승소 관리 ── */
+  const winInst = winInsts[winActiveIdx];
+  const updWinInst = upd => setWinInsts(prev=>{const nx=[...prev];nx[winActiveIdx]={...nx[winActiveIdx],...upd};return nx;});
+  const updWinSec  = u => updWinInst({sec:{...winInst.sec,...u}});
+  const addWinTravel = (dep,dest,fare) => updWinInst({travels:[...winInst.travels,
+    {dep:dep||'',dest:dest||'',fare:fare?String(fare):'',trips:'1',enabled:true,amt:'',note:''}]});
+  const removeWinTravel = i => updWinInst({travels:winInst.travels.filter((_,j)=>j!==i)});
+  const updWinTravelField = (ti,field,val) => setWinInsts(prev=>{
+    const nx=[...prev]; const ts=[...nx[winActiveIdx].travels];
+    ts[ti]={...ts[ti],[field]:val}; nx[winActiveIdx]={...nx[winActiveIdx],travels:ts}; return nx;
+  });
+  const addWinInstance = () => {
+    if(winInsts.length>=INSTANCE_LABELS.length) return;
+    setWinInsts(prev=>[...prev,defaultWinInst(INSTANCE_LABELS[prev.length])]);
+    setWinActiveIdx(winInsts.length);
+  };
+  const deleteWinInstance = () => {
+    if(winActiveIdx===0||winInsts.length<=1) return;
+    if(!confirm('현재 심급 데이터를 삭제하시겠습니까?')) return;
+    const ni=winInsts.filter((_,i)=>i!==winActiveIdx);
+    setWinInsts(ni); setWinActiveIdx(Math.min(winActiveIdx,ni.length-1));
+  };
+  const resetWinInst = () => {
+    if(!confirm('현재 심급의 모든 입력값을 초기화하시겠습니까?')) return;
+    setWinInsts(prev=>{const nx=[...prev];nx[winActiveIdx]=defaultWinInst(winInst.label);return nx;});
+    setConfStamp(''); setConfPost('');
+  };
+  const allWinComputed = winInsts.map(computeWinInst);
+  const winGrand = allWinComputed.reduce((s,c)=>s+c.subtotal,0)+N(confStamp)+N(confPost);
+  const n_win = winInsts.length;
+  const confLabel_win = String.fromCharCode(65+n_win);
+  const bonAnLabel_win = SUB_LABELS.slice(0,n_win).join('+');
+
+  /* ── 일부승소 관리 ── */
+  const partialInst = partialInsts[partialActiveIdx];
+  const updPartialInst = upd => setPartialInsts(prev=>{const nx=[...prev];nx[partialActiveIdx]={...nx[partialActiveIdx],...upd};return nx;});
+  const updParty = (party, upd) => updPartialInst({[party]:{...partialInst[party],...upd}});
+  const updPartySec = (party, u) => updParty(party, {sec:{...partialInst[party].sec,...u}});
+  const addPartyTravel = (party,dep,dest,fare) => updParty(party,{travels:[...partialInst[party].travels,
+    {dep:dep||'',dest:dest||'',fare:fare?String(fare):'',trips:'1',enabled:true,amt:'',note:''}]});
+  const removePartyTravel = (party,i) => updParty(party,{travels:partialInst[party].travels.filter((_,j)=>j!==i)});
+  const updPartyTravelField = (party,ti,field,val) => setPartialInsts(prev=>{
+    const nx=[...prev]; const ts=[...nx[partialActiveIdx][party].travels];
+    ts[ti]={...ts[ti],[field]:val}; nx[partialActiveIdx]={...nx[partialActiveIdx],[party]:{...nx[partialActiveIdx][party],travels:ts}}; return nx;
+  });
+  const addPartialInstance = () => {
+    if(partialInsts.length>=INSTANCE_LABELS.length) return;
+    setPartialInsts(prev=>[...prev,defaultPartialInst(INSTANCE_LABELS[prev.length])]);
+    setPartialActiveIdx(partialInsts.length);
+  };
+  const deletePartialInstance = () => {
+    if(partialActiveIdx===0||partialInsts.length<=1) return;
+    if(!confirm('현재 심급 데이터를 삭제하시겠습니까?')) return;
+    const ni=partialInsts.filter((_,i)=>i!==partialActiveIdx);
+    setPartialInsts(ni); setPartialActiveIdx(Math.min(partialActiveIdx,ni.length-1));
+  };
+  const resetPartialInst = () => {
+    if(!confirm('현재 심급의 모든 입력값을 초기화하시겠습니까?')) return;
+    setPartialInsts(prev=>{const nx=[...prev];nx[partialActiveIdx]=defaultPartialInst(partialInst.label);return nx;});
+  };
+  const pTotalAll = partialInsts.reduce((s,pi)=>{
+    const items=getInstItems(toWinView(pi,'p')); return s+items.reduce((ss,i)=>ss+i.amount,0);
+  },0);
+  const dTotalAll = partialInsts.reduce((s,pi)=>{
+    const items=getInstItems(toWinView(pi,'d')); return s+items.reduce((ss,i)=>ss+i.amount,0);
+  },0);
+  const rNum_p = parseInt(pRatioNum)||0; const rDen_p = parseInt(pRatioDen)||10;
+  const reimbursement_p = (rNum_p/rDen_p)*pTotalAll - ((rDen_p-rNum_p)/rDen_p)*dTotalAll;
+  const partialGrand = Math.max(0, Math.round(Math.abs(reimbursement_p)));
+
+  /* ── 포기 관리 ── */
+  const abandonInst = abandonInsts[abandonActiveIdx];
+  const updAbandonInst = upd => setAbandonInsts(prev=>{const nx=[...prev];nx[abandonActiveIdx]={...nx[abandonActiveIdx],...upd};return nx;});
+  const addAbandonInstance = () => {
+    if(abandonInsts.length>=INSTANCE_LABELS.length) return;
+    setAbandonInsts(prev=>[...prev,defaultAbandonInst(INSTANCE_LABELS[prev.length])]);
+    setAbandonActiveIdx(abandonInsts.length);
+  };
+  const deleteAbandonInstance = () => {
+    if(abandonActiveIdx===0||abandonInsts.length<=1) return;
+    if(!confirm('현재 심급 데이터를 삭제하시겠습니까?')) return;
+    const ni=abandonInsts.filter((_,i)=>i!==abandonActiveIdx);
+    setAbandonInsts(ni); setAbandonActiveIdx(Math.min(abandonActiveIdx,ni.length-1));
+  };
+  const resetAbandonInst = () => {
+    if(!confirm('현재 심급의 모든 입력값을 초기화하시겠습니까?')) return;
+    setAbandonInsts(prev=>{const nx=[...prev];nx[abandonActiveIdx]=defaultAbandonInst(abandonInst.label);return nx;});
+  };
+
+  /* ── 인쇄 ── */
+  const printSection = section => {
+    const origTitle = document.title;
+    if(section === 'calc') document.title = '소송비용계산서';
+    else if(section === 'petition') document.title = '소송비용액확정신청서';
+    else if(section === 'abandon') document.title = '소송비용계산서(포기)';
+    document.body.setAttribute('data-print', section);
+    const cleanup = () => {
+      document.body.removeAttribute('data-print');
+      document.title = origTitle;
+      window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup);
+    window.print();
+  };
+
+  const modeCls = {승소:'m-win', '일부승소(포기)':'m-partial', 포기:'m-giveup'};
+
+  /* 현재 활성 인스턴스 배열 & 탭 관리 */
+  const curTabInsts   = isGlobalWin ? winInsts : isPartialMode ? partialInsts : abandonInsts;
+  const curActiveIdx  = isGlobalWin ? winActiveIdx : isPartialMode ? partialActiveIdx : abandonActiveIdx;
+  const addInst       = isGlobalWin ? addWinInstance : isPartialMode ? addPartialInstance : addAbandonInstance;
+  const deleteInst    = isGlobalWin ? deleteWinInstance : isPartialMode ? deletePartialInstance : deleteAbandonInstance;
+  const setActiveIdx  = isGlobalWin ? setWinActiveIdx : isPartialMode ? setPartialActiveIdx : setAbandonActiveIdx;
+
+  /* 현재 party 데이터 */
+  const pp = partialParty; // 'p' | 'd'
+  const partyData = isPartialMode ? partialInst[pp] : null;
+
+  /* 승소 grand total 문자열 */
+  const grandLabelWin = `${bonAnLabel_win}+${confLabel_win}`;
+
+  return (
+    <div>
+      <div className="app-header">
+        <h1>⚖ 소송비용액확정신청서 및 소송비용계산서 자동화</h1>
+        <p>심급별 · 소송 결과별 맞춤형 소송비용계산서 자동 생성</p>
+      </div>
+
+      {/* 수정 10: 승소/일부승소/포기 */}
+      <div className="mode-bar">
+        <label>소송 결과 선택:</label>
+        {['승소','일부승소(포기)','포기'].map(m=>(
+          <button key={m} className={`mbtn${globalMode===m?' '+modeCls[m]:''}`} onClick={()=>setGlobalMode(m)}>
+            {m==='승소'?'✅ 승소':m==='일부승소(포기)'?'⚖ 일부승소(포기)':'🚫 포기'}
+          </button>
+        ))}
+        <span className="mode-hint">{isGlobalWin?'본안비용 양식':isGiveup?'포기 양식':'상환금액 계산 양식'}</span>
+      </div>
+
+      {/* 수정 9: 심급 탭 */}
+      <div className="inst-tabs">
+        <label>심급 선택:</label>
+        {curTabInsts.map((ins,i)=>(
+          <button key={i} className={`itab${curActiveIdx===i?' active':''}`} onClick={()=>setActiveIdx(i)}>
+            {ins.label}
+          </button>
+        ))}
+        {curTabInsts.length < INSTANCE_LABELS.length && (
+          <button className="itab-add" onClick={addInst}>+ {INSTANCE_LABELS[curTabInsts.length]} 추가</button>
+        )}
+        {curTabInsts.length > 1 && curActiveIdx !== 0 && (
+          <button className="itab-del" onClick={deleteInst}>× 현재 심급 삭제</button>
+        )}
+      </div>
+
+      <div className="layout">
+        {/* ══ 입력 패널 ══ */}
+        <div className="inp no-print">
+
+          {/* ── 승소 입력 ── */}
+          {isGlobalWin && (
+            <>
+              <div style={{display:'flex',justifyContent:'flex-end',marginBottom:8}}>
+                <button className="btn btn-r" style={{fontSize:12}} onClick={resetWinInst}>🗑 전체 초기화</button>
+              </div>
+              {/* 수정 1: 라벨 변경 */}
+              <div className="sec">
+                <div className="sec-title">📁 사건 정보 — {winInst.label}</div>
+                <div className="frow">
+                  <div className="fg"><label className="fl">사건번호</label>
+                    <input className="fi" value={winInst.num} onChange={e=>updWinInst({num:e.target.value})} placeholder="2024가단12345"/></div>
+                  <div className="fg"><label className="fl">법원</label>
+                    <input className="fi" value={winInst.court} onChange={e=>updWinInst({court:e.target.value})} placeholder="수원지방법원"/></div>
+                </div>
+              </div>
+              <ItemSection label="📅 변론기일 참석 일당" enabled={winInst.attendEnabled} onToggle={()=>updWinInst({attendEnabled:!winInst.attendEnabled})}>
+                <div className="fg">
+                  <label className="fl">횟수</label>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <input className="fi" style={{width:80}} type="number" min="0" value={winInst.attendCnt} onChange={e=>updWinInst({attendCnt:e.target.value})} placeholder="0"/>
+                    <span style={{fontSize:12,color:'#666'}}>회 × 50,000원 = <strong>{(N(winInst.attendCnt)*ATTENDANCE).toLocaleString()}원</strong></span>
+                  </div>
+                </div>
+                <div className="frow" style={{alignItems:'flex-end',gap:4}}>
+                  <div className="fg"><label className="fl">금액</label>
+                    <input className="fi" type="number" value={winInst.attendAmt!==''?winInst.attendAmt:autoAttendAmt(winInst)||''} onChange={e=>updWinInst({attendAmt:e.target.value})} placeholder={String(autoAttendAmt(winInst))}/></div>
+                  <div className="fg"><label className="fl">비고</label>
+                    <textarea className="fi" rows="2" style={{resize:'none',fontSize:12}} value={winInst.attendNote!==''?winInst.attendNote:`1회당¹⁾\n50,000원`} onChange={e=>updWinInst({attendNote:e.target.value})}/></div>
+                  <button className="btn btn-s" style={{padding:'7px 10px',flexShrink:0,marginBottom:1}} onClick={()=>updWinInst({attendAmt:'',attendNote:''})}>↺</button>
+                </div>
+              </ItemSection>
+              <ItemSection label="🍱 식대" enabled={winInst.mealEnabled} onToggle={()=>updWinInst({mealEnabled:!winInst.mealEnabled})}>
+                <div className="fg">
+                  <label className="fl">횟수</label>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <input className="fi" style={{width:80}} type="number" min="0" value={winInst.mealCnt} onChange={e=>updWinInst({mealCnt:e.target.value})} placeholder="0"/>
+                    <span style={{fontSize:12,color:'#666'}}>회 × 25,000원 = <strong>{(N(winInst.mealCnt)*MEAL).toLocaleString()}원</strong></span>
+                  </div>
+                </div>
+                <div className="frow" style={{alignItems:'flex-end',gap:4}}>
+                  <div className="fg"><label className="fl">금액</label>
+                    <input className="fi" type="number" value={winInst.mealAmt!==''?winInst.mealAmt:autoMealAmt(winInst)||''} onChange={e=>updWinInst({mealAmt:e.target.value})} placeholder={String(autoMealAmt(winInst))}/></div>
+                  <div className="fg"><label className="fl">비고</label>
+                    <textarea className="fi" rows="2" style={{resize:'none',fontSize:12}} value={winInst.mealNote!==''?winInst.mealNote:`1일²⁾\n25,000원³⁾`} onChange={e=>updWinInst({mealNote:e.target.value})}/></div>
+                  <button className="btn btn-s" style={{padding:'7px 10px',flexShrink:0,marginBottom:1}} onClick={()=>updWinInst({mealAmt:'',mealNote:''})}>↺</button>
+                </div>
+              </ItemSection>
+              <TravelSection travels={winInst.travels} onAdd={addWinTravel} onRemove={removeWinTravel} onUpdateField={updWinTravelField}
+                quickAdd={(dep,dest,fare)=>addWinTravel(dep,dest,fare)}/>
+              {/* 수정 7: 변호사보수 */}
+              <ItemSection label="👔 변호사 보수" enabled={winInst.attyEnabled} onToggle={()=>updWinInst({attyEnabled:!winInst.attyEnabled})}>
+                <div className="fg"><label className="fl">소가 (원)</label>
+                  <input className="fi" type="number" value={winInst.attySoga} onChange={e=>updWinInst({attySoga:e.target.value})} placeholder="0"/></div>
+                {N(winInst.attySoga)>0&&<div className="cbadge"><div className="cbadge-row"><span>규칙상 한도</span><span>{fmt(feeCalc(N(winInst.attySoga)))}</span></div></div>}
+                <div className="fg" style={{marginTop:6}}><label className="fl">실지급 변호사보수 (원)</label>
+                  <input className="fi" type="number" value={winInst.attyActual} onChange={e=>updWinInst({attyActual:e.target.value})} placeholder="0"/></div>
+                {N(winInst.attySoga)>0&&<div className="cbadge"><div className="cbadge-total"><span>적용 보수액</span><span>{fmt(autoAttyApplied(winInst))}</span></div></div>}
+                <div className="frow" style={{alignItems:'flex-end',gap:4,marginTop:6}}>
+                  <div className="fg"><label className="fl">금액</label>
+                    <input className="fi" type="number" value={winInst.attyAmt!==''?winInst.attyAmt:autoAttyApplied(winInst)||''} onChange={e=>updWinInst({attyAmt:e.target.value})}/></div>
+                  <div className="fg"><label className="fl">비고</label>
+                    <textarea className="fi" rows="2" style={{resize:'none',fontSize:12}} value={winInst.attyNote!==''?winInst.attyNote:`변호사\n보수⁷⁾`} onChange={e=>updWinInst({attyNote:e.target.value})}/></div>
+                  <button className="btn btn-s" style={{padding:'7px 10px',flexShrink:0,marginBottom:1}} onClick={()=>updWinInst({attyAmt:'',attyNote:''})}>↺</button>
+                </div>
+              </ItemSection>
+              <ItemSection label="📝 서기료" enabled={winInst.secEnabled} onToggle={()=>updWinInst({secEnabled:!winInst.secEnabled})}>
+                <div className="frow">
+                  <div className="fg"><label className="fl">총 장수</label>
+                    <input className="fi" type="number" min="0" value={winInst.sec.total_pages} onChange={e=>updWinSec({total_pages:e.target.value})} placeholder="0"/></div>
+                  <div className="fg"><label className="fl">서면 내역</label>
+                    <input className="fi" value={winInst.sec_desc} onChange={e=>updWinInst({sec_desc:e.target.value})} placeholder="답변서 1회, 준비서면 2회"/></div>
+                </div>
+                <div className="frow" style={{alignItems:'flex-end',gap:4}}>
+                  <div className="fg"><label className="fl">금액</label>
+                    <input className="fi" type="number" value={winInst.secAmt!==''?winInst.secAmt:autoSecAmt(winInst)||''} onChange={e=>updWinInst({secAmt:e.target.value})}/></div>
+                  <div className="fg"><label className="fl">비고</label>
+                    <textarea className="fi" rows="2" style={{resize:'none',fontSize:12}} value={winInst.secNote!==''?winInst.secNote:`장당\n250원`} onChange={e=>updWinInst({secNote:e.target.value})}/></div>
+                  <button className="btn btn-s" style={{padding:'7px 10px',flexShrink:0,marginBottom:1}} onClick={()=>updWinInst({secAmt:'',secNote:''})}>↺</button>
+                </div>
+              </ItemSection>
+              <ItemSection label="📋 본안 소송비용 (인지액·송달료·환급액)" enabled={winInst.bonStampEnabled} onToggle={()=>updWinInst({bonStampEnabled:!winInst.bonStampEnabled})}>
+                <div className="frow">
+                  <div className="fg"><label className="fl">인지액 (원)</label>
+                    <input className="fi" type="number" value={winInst.bonStamp} onChange={e=>updWinInst({bonStamp:e.target.value})} placeholder="0"/></div>
+                  <div className="fg"><label className="fl">송달료 (원)</label>
+                    <input className="fi" type="number" value={winInst.bonPost} onChange={e=>updWinInst({bonPost:e.target.value})} placeholder="0"/></div>
+                </div>
+                <div className="frow">
+                  <div className="fg"><label className="fl">환급액 (원, 차감)</label>
+                    <input className="fi" type="number" value={winInst.bonRefund} onChange={e=>updWinInst({bonRefund:e.target.value})} placeholder="0"/></div>
+                  <div className="fg" style={{display:'flex',alignItems:'flex-end',paddingBottom:2}}>
+                    <span style={{fontSize:12,color:'#1b3a5e',fontWeight:700}}>
+                      소계: {fmt(N(winInst.bonStamp)+N(winInst.bonPost)-N(winInst.bonRefund))}
+                    </span>
+                  </div>
+                </div>
+              </ItemSection>
+              <ItemSection label="📎 기타 비용" enabled={winInst.otherEnabled} onToggle={()=>updWinInst({otherEnabled:!winInst.otherEnabled})}>
+                <div className="frow">
+                  <div className="fg"><label className="fl">금액 (원)</label>
+                    <input className="fi" type="number" value={winInst.other} onChange={e=>updWinInst({other:e.target.value})} placeholder="0"/></div>
+                  <div className="fg"><label className="fl">비고</label>
+                    <input className="fi" value={winInst.otherNote||''} onChange={e=>updWinInst({otherNote:e.target.value})}/></div>
+                </div>
+              </ItemSection>
+              <ItemSection label="📋 소송비용확정 신청비용" enabled={winInst.confEnabled} onToggle={()=>updWinInst({confEnabled:!winInst.confEnabled})}>
+                <div className="frow">
+                  <div className="fg"><label className="fl">신청서 인지대 (원)</label><input className="fi" value={confStamp} onChange={e=>setConfStamp(e.target.value)} placeholder="0"/></div>
+                  <div className="fg"><label className="fl">송달료 (원)</label><input className="fi" value={confPost} onChange={e=>setConfPost(e.target.value)} placeholder="0"/></div>
+                </div>
+              </ItemSection>
+              <div className="total-box">
+                <div style={{fontSize:12,color:'#555',marginBottom:4}}>총 소송비용 합계 ({grandLabelWin})</div>
+                <div className="big">{fmt(winGrand)}</div>
+              </div>
+              <PetitionInput petition={petition} onUpdate={updPetition} firstInstCourt={winInsts[0]?.court}/>
+            </>
+          )}
+
+          {/* ── 일부승소 입력 ── */}
+          {isPartialMode && (
+            <>
+              {/* 계산 모드 선택 */}
+              <div className="sec" style={{borderLeft:'4px solid #d35400'}}>
+                <div className="sec-title">⚙ 계산 범위 선택</div>
+                <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                  {[
+                    {val:'both', label:'신청인 + 피신청인'},
+                    {val:'p',    label:'신청인만'},
+                    {val:'d',    label:'피신청인만'},
+                  ].map(({val,label})=>(
+                    <label key={val} style={{display:'flex',alignItems:'center',gap:5,fontSize:13,cursor:'pointer',
+                      padding:'6px 12px',borderRadius:6,border:`2px solid ${partialCalcMode===val?'#d35400':'#ccd3db'}`,
+                      background:partialCalcMode===val?'#fff3ec':'#fff',fontWeight:partialCalcMode===val?700:400}}>
+                      <input type="radio" name="calcMode" value={val}
+                        checked={partialCalcMode===val} onChange={()=>setPartialCalcMode(val)} style={{display:'none'}}/>
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+                {(partialCalcMode==='both'||partialCalcMode==='p'||partialCalcMode==='d') && (
+                  <div className="party-toggle">
+                    {(partialCalcMode==='both'||partialCalcMode==='p') && (
+                      <button className={`party-tab${pp==='p'?' active':''}`} onClick={()=>setPartialParty('p')}>신청인</button>
+                    )}
+                    {(partialCalcMode==='both'||partialCalcMode==='d') && (
+                      <button className={`party-tab${pp==='d'?' active':''}`} onClick={()=>setPartialParty('d')}>피신청인</button>
+                    )}
+                  </div>
+                )}
+                <button className="btn btn-r" style={{fontSize:12}} onClick={resetPartialInst}>🗑 전체 초기화</button>
+              </div>
+              <div className="sec">
+                <div className="sec-title">📁 사건 정보 — {partialInst.label}</div>
+                <div className="frow">
+                  <div className="fg"><label className="fl">사건번호</label>
+                    <input className="fi" value={partialInst.num} onChange={e=>updPartialInst({num:e.target.value})} placeholder="2024가단12345"/></div>
+                  <div className="fg"><label className="fl">법원</label>
+                    <input className="fi" value={partialInst.court} onChange={e=>updPartialInst({court:e.target.value})} placeholder="수원지방법원"/></div>
+                </div>
+              </div>
+              <div className="sec">
+                <div className="sec-title">⚖ 소송비용 부담 비율 (전체 적용)</div>
+                <div className="ratio-row">
+                  <span>피신청인 부담:</span>
+                  <input value={pRatioNum} onChange={e=>setPRatioNum(e.target.value)}/>
+                  <span style={{fontWeight:700}}>/</span>
+                  <input value={pRatioDen} onChange={e=>setPRatioDen(e.target.value)}/>
+                  <span className="ratio-pct">({((rNum_p/rDen_p)*100).toFixed(1)}%)</span>
+                </div>
+              </div>
+              {/* 선택된 party 항목 */}
+              <div style={{background:'#f0f4f8',borderRadius:8,padding:8,marginBottom:8}}>
+                <div style={{fontWeight:700,fontSize:13,color:'#1b3a5e',marginBottom:8}}>
+                  {pp==='p'?'👤 신청인 소송비용':'👤 피신청인 소송비용'}
+                </div>
+                <ItemSection label="📅 변론기일 참석 일당" enabled={partyData.attendEnabled} onToggle={()=>updParty(pp,{attendEnabled:!partyData.attendEnabled})}>
+                  <div className="fg"><label className="fl">횟수</label>
+                    <div style={{display:'flex',alignItems:'center',gap:8}}>
+                      <input className="fi" style={{width:80}} type="number" min="0" value={partyData.attendCnt} onChange={e=>updParty(pp,{attendCnt:e.target.value})} placeholder="0"/>
+                      <span style={{fontSize:12,color:'#666'}}>회 × 50,000원</span>
+                    </div>
+                  </div>
+                  <div className="frow" style={{alignItems:'flex-end',gap:4}}>
+                    <div className="fg"><label className="fl">금액</label>
+                      <input className="fi" type="number" value={partyData.attendAmt!==''?partyData.attendAmt:N(partyData.attendCnt)*ATTENDANCE||''} onChange={e=>updParty(pp,{attendAmt:e.target.value})}/></div>
+                    <div className="fg"><label className="fl">비고</label>
+                      <textarea className="fi" rows="2" style={{resize:'none',fontSize:12}} value={partyData.attendNote!==''?partyData.attendNote:`1회당¹⁾\n50,000원`} onChange={e=>updParty(pp,{attendNote:e.target.value})}/></div>
+                    <button className="btn btn-s" style={{padding:'7px 10px',flexShrink:0,marginBottom:1}} onClick={()=>updParty(pp,{attendAmt:'',attendNote:''})}>↺</button>
+                  </div>
+                </ItemSection>
+                <ItemSection label="🍱 식대" enabled={partyData.mealEnabled} onToggle={()=>updParty(pp,{mealEnabled:!partyData.mealEnabled})}>
+                  <div className="fg"><label className="fl">횟수</label>
+                    <div style={{display:'flex',alignItems:'center',gap:8}}>
+                      <input className="fi" style={{width:80}} type="number" min="0" value={partyData.mealCnt} onChange={e=>updParty(pp,{mealCnt:e.target.value})} placeholder="0"/>
+                      <span style={{fontSize:12,color:'#666'}}>회 × 25,000원</span>
+                    </div>
+                  </div>
+                  <div className="frow" style={{alignItems:'flex-end',gap:4}}>
+                    <div className="fg"><label className="fl">금액</label>
+                      <input className="fi" type="number" value={partyData.mealAmt!==''?partyData.mealAmt:N(partyData.mealCnt)*MEAL||''} onChange={e=>updParty(pp,{mealAmt:e.target.value})}/></div>
+                    <div className="fg"><label className="fl">비고</label>
+                      <textarea className="fi" rows="2" style={{resize:'none',fontSize:12}} value={partyData.mealNote!==''?partyData.mealNote:`1일²⁾\n25,000원³⁾`} onChange={e=>updParty(pp,{mealNote:e.target.value})}/></div>
+                    <button className="btn btn-s" style={{padding:'7px 10px',flexShrink:0,marginBottom:1}} onClick={()=>updParty(pp,{mealAmt:'',mealNote:''})}>↺</button>
+                  </div>
+                </ItemSection>
+                <TravelSection travels={partyData.travels}
+                  onAdd={(dep,dest,fare)=>addPartyTravel(pp,dep,dest,fare)}
+                  onRemove={i=>removePartyTravel(pp,i)}
+                  onUpdateField={(ti,field,val)=>updPartyTravelField(pp,ti,field,val)}
+                  quickAdd={(dep,dest,fare)=>addPartyTravel(pp,dep,dest,fare)}/>
+                <ItemSection label="👔 변호사 보수" enabled={partyData.attyEnabled} onToggle={()=>updParty(pp,{attyEnabled:!partyData.attyEnabled})}>
+                  <div className="fg"><label className="fl">소가 (원)</label>
+                    <input className="fi" type="number" value={partyData.attySoga} onChange={e=>updParty(pp,{attySoga:e.target.value})} placeholder="0"/></div>
+                  {N(partyData.attySoga)>0&&<div className="cbadge"><div className="cbadge-row"><span>규칙상 한도</span><span>{fmt(feeCalc(N(partyData.attySoga)))}</span></div></div>}
+                  <div className="fg" style={{marginTop:6}}><label className="fl">실지급 변호사보수</label>
+                    <input className="fi" type="number" value={partyData.attyActual} onChange={e=>updParty(pp,{attyActual:e.target.value})} placeholder="0"/></div>
+                  {N(partyData.attySoga)>0&&<div className="cbadge"><div className="cbadge-total"><span>적용 보수액</span><span>{fmt(autoAttyApplied(partyData))}</span></div></div>}
+                  <div className="frow" style={{alignItems:'flex-end',gap:4,marginTop:6}}>
+                    <div className="fg"><label className="fl">금액</label>
+                      <input className="fi" type="number" value={partyData.attyAmt!==''?partyData.attyAmt:autoAttyApplied(partyData)||''} onChange={e=>updParty(pp,{attyAmt:e.target.value})}/></div>
+                    <div className="fg"><label className="fl">비고</label>
+                      <textarea className="fi" rows="2" style={{resize:'none',fontSize:12}} value={partyData.attyNote!==''?partyData.attyNote:`변호사\n보수⁷⁾`} onChange={e=>updParty(pp,{attyNote:e.target.value})}/></div>
+                    <button className="btn btn-s" style={{padding:'7px 10px',flexShrink:0,marginBottom:1}} onClick={()=>updParty(pp,{attyAmt:'',attyNote:''})}>↺</button>
+                  </div>
+                </ItemSection>
+                <ItemSection label="📝 서기료" enabled={partyData.secEnabled} onToggle={()=>updParty(pp,{secEnabled:!partyData.secEnabled})}>
+                  <div className="frow">
+                    <div className="fg"><label className="fl">총 장수</label>
+                      <input className="fi" type="number" min="0" value={partyData.sec.total_pages} onChange={e=>updPartySec(pp,{total_pages:e.target.value})} placeholder="0"/></div>
+                    <div className="fg"><label className="fl">서면 내역</label>
+                      <input className="fi" value={partyData.sec_desc} onChange={e=>updParty(pp,{sec_desc:e.target.value})} placeholder="답변서 1회"/></div>
+                  </div>
+                  <div className="frow" style={{alignItems:'flex-end',gap:4}}>
+                    <div className="fg"><label className="fl">금액</label>
+                      <input className="fi" type="number" value={partyData.secAmt!==''?partyData.secAmt:autoSecAmt(partyData)||''} onChange={e=>updParty(pp,{secAmt:e.target.value})}/></div>
+                    <div className="fg"><label className="fl">비고</label>
+                      <textarea className="fi" rows="2" style={{resize:'none',fontSize:12}} value={partyData.secNote!==''?partyData.secNote:`장당\n250원`} onChange={e=>updParty(pp,{secNote:e.target.value})}/></div>
+                    <button className="btn btn-s" style={{padding:'7px 10px',flexShrink:0,marginBottom:1}} onClick={()=>updParty(pp,{secAmt:'',secNote:''})}>↺</button>
+                  </div>
+                </ItemSection>
+                <ItemSection label="📋 본안 소송비용 (인지액·송달료·환급액)" enabled={partyData.bonStampEnabled} onToggle={()=>updParty(pp,{bonStampEnabled:!partyData.bonStampEnabled})}>
+                  <div className="frow">
+                    <div className="fg"><label className="fl">인지액 (원)</label>
+                      <input className="fi" type="number" value={partyData.bonStamp||''} onChange={e=>updParty(pp,{bonStamp:e.target.value})} placeholder="0"/></div>
+                    <div className="fg"><label className="fl">송달료 (원)</label>
+                      <input className="fi" type="number" value={partyData.bonPost||''} onChange={e=>updParty(pp,{bonPost:e.target.value})} placeholder="0"/></div>
+                  </div>
+                  <div className="frow">
+                    <div className="fg"><label className="fl">환급액 (원, 차감)</label>
+                      <input className="fi" type="number" value={partyData.bonRefund||''} onChange={e=>updParty(pp,{bonRefund:e.target.value})} placeholder="0"/></div>
+                    <div className="fg" style={{display:'flex',alignItems:'flex-end',paddingBottom:2}}>
+                      <span style={{fontSize:12,color:'#1b3a5e',fontWeight:700}}>
+                        소계: {fmt(N(partyData.bonStamp)+N(partyData.bonPost)-N(partyData.bonRefund))}
+                      </span>
+                    </div>
+                  </div>
+                </ItemSection>
+                <ItemSection label="📎 기타비용" enabled={partyData.otherEnabled} onToggle={()=>updParty(pp,{otherEnabled:!partyData.otherEnabled})}>
+                  <div className="frow">
+                    <div className="fg"><label className="fl">금액 (원)</label>
+                      <input className="fi" type="number" value={partyData.otherAmt} onChange={e=>updParty(pp,{otherAmt:e.target.value})} placeholder="0"/></div>
+                    <div className="fg"><label className="fl">비고</label>
+                      <input className="fi" value={partyData.otherNote} onChange={e=>updParty(pp,{otherNote:e.target.value})}/></div>
+                  </div>
+                </ItemSection>
+                <ItemSection label="📋 소송비용확정 신청비용" enabled={partyData.confEnabled} onToggle={()=>updParty(pp,{confEnabled:!partyData.confEnabled})}>
+                  <div className="frow">
+                    <div className="fg"><label className="fl">신청서 인지대 (원)</label>
+                      <input className="fi" type="number" value={partyData.confStamp} onChange={e=>updParty(pp,{confStamp:e.target.value})} placeholder="0"/></div>
+                    <div className="fg"><label className="fl">송달료 (원)</label>
+                      <input className="fi" type="number" value={partyData.confPost} onChange={e=>updParty(pp,{confPost:e.target.value})} placeholder="0"/></div>
+                  </div>
+                  <div style={{textAlign:'right',fontWeight:700,color:'#1b3a5e',fontSize:12,marginTop:4}}>
+                    소계: {fmt(N(partyData.confStamp)+N(partyData.confPost))}
+                  </div>
+                </ItemSection>
+              </div>
+              {/* 상환금액 미리보기 */}
+              <div className="sec" style={{background:reimbursement_p>=0?'#fff8f0':'#fff0f0',borderLeft:`4px solid ${reimbursement_p>=0?'#d35400':'#c0392b'}`}}>
+                <div className="sec-title" style={{color:reimbursement_p>=0?'#d35400':'#922b21'}}>💵 상환금액 (미리보기)</div>
+                <div style={{fontSize:20,fontWeight:700,color:reimbursement_p>=0?'#d35400':'#922b21',textAlign:'right'}}>
+                  {reimbursement_p>=0?'↑ 받을 금액: ':'↓ 지급 금액: '}{fmt(Math.abs(Math.round(reimbursement_p)))}
+                </div>
+              </div>
+              <PetitionInput petition={petition} onUpdate={updPetition} firstInstCourt={partialInsts[0]?.court}/>
+            </>
+          )}
+
+          {/* ── 포기 입력 ── */}
+          {isGiveup && (
+            <>
+              <div style={{display:'flex',justifyContent:'flex-end',marginBottom:8}}>
+                <button className="btn btn-r" style={{fontSize:12}} onClick={resetAbandonInst}>🗑 전체 초기화</button>
+              </div>
+              <div className="sec">
+                <div className="sec-title">📁 사건 정보 — {abandonInst.label}</div>
+                <div className="frow">
+                  <div className="fg"><label className="fl">법원</label><input className="fi" value={abandonInst.court} onChange={e=>updAbandonInst({court:e.target.value})} placeholder="수원지방법원"/></div>
+                  <div className="fg"><label className="fl">사건번호</label><input className="fi" value={abandonInst.caseNum} onChange={e=>updAbandonInst({caseNum:e.target.value})} placeholder="2024구합12345"/></div>
+                </div>
+                <div className="fg"><label className="fl">사건명</label><input className="fi" value={abandonInst.caseTitle} onChange={e=>updAbandonInst({caseTitle:e.target.value})} placeholder="장기요양급여비용 환수결정 취소청구의 소"/></div>
+              </div>
+              <div className="sec">
+                <div className="sec-title">⚖ 본안사건 소송비용</div>
+                <div className="frow">
+                  <div className="fg"><label className="fl">인지액 (원)</label><input className="fi" type="number" value={abandonInst.stampAmt} onChange={e=>updAbandonInst({stampAmt:e.target.value})} placeholder="0"/></div>
+                  <div className="fg"><label className="fl">송달료 (원)</label><input className="fi" type="number" value={abandonInst.postageAmt} onChange={e=>updAbandonInst({postageAmt:e.target.value})} placeholder="0"/></div>
+                </div>
+                <div className="frow">
+                  <div className="fg"><label className="fl">환급액 (원, 차감)</label><input className="fi" type="number" value={abandonInst.refundAmt} onChange={e=>updAbandonInst({refundAmt:e.target.value})} placeholder="0"/></div>
+                  <div className="fg"><label className="fl">출장비 (원)</label><input className="fi" type="number" value={abandonInst.outingAmt} onChange={e=>updAbandonInst({outingAmt:e.target.value})} placeholder="0"/></div>
+                </div>
+                <div className="fg"><label className="fl">출장비 비고</label><input className="fi" value={abandonInst.outingNote} onChange={e=>updAbandonInst({outingNote:e.target.value})}/></div>
+                <div className="frow">
+                  <div className="fg"><label className="fl">변론기일 참석 횟수</label>
+                    <div style={{display:'flex',alignItems:'center',gap:6}}>
+                      <input className="fi" style={{width:70}} type="number" min="0" value={abandonInst.attendCnt} onChange={e=>updAbandonInst({attendCnt:e.target.value})} placeholder="0"/>
+                      <span style={{fontSize:11,color:'#666'}}>회 × 50,000 = {(N(abandonInst.attendCnt)*ATTENDANCE).toLocaleString()}원</span>
+                    </div>
+                  </div>
+                  <div className="fg"><label className="fl">식대 횟수</label>
+                    <div style={{display:'flex',alignItems:'center',gap:6}}>
+                      <input className="fi" style={{width:70}} type="number" min="0" value={abandonInst.mealCnt} onChange={e=>updAbandonInst({mealCnt:e.target.value})} placeholder="0"/>
+                      <span style={{fontSize:11,color:'#666'}}>회 × 25,000 = {(N(abandonInst.mealCnt)*MEAL).toLocaleString()}원</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="fg"><label className="fl">서기료 총 장수</label>
+                  <div style={{display:'flex',alignItems:'center',gap:6}}>
+                    <input className="fi" style={{width:70}} type="number" min="0" value={abandonInst.secPages} onChange={e=>updAbandonInst({secPages:e.target.value})} placeholder="0"/>
+                    <span style={{fontSize:11,color:'#666'}}>장 × 250 = {(N(abandonInst.secPages)*SEC_RATE).toLocaleString()}원</span>
+                  </div>
+                </div>
+                <div style={{textAlign:'right',fontWeight:700,color:'#1b3a5e'}}>본안 소계: {fmt(N(abandonInst.stampAmt)+N(abandonInst.postageAmt)-N(abandonInst.refundAmt)+N(abandonInst.outingAmt)+N(abandonInst.attendCnt)*ATTENDANCE+N(abandonInst.mealCnt)*MEAL+N(abandonInst.secPages)*SEC_RATE)}</div>
+              </div>
+              <div className="sec">
+                <div className="sec-title">📋 신청사건 소송비용</div>
+                <div className="frow">
+                  <div className="fg"><label className="fl">신청서 인지대 (원)</label><input className="fi" type="number" value={abandonInst.appStampAmt} onChange={e=>updAbandonInst({appStampAmt:e.target.value})} placeholder="0"/></div>
+                  <div className="fg"><label className="fl">송달료 (원)</label><input className="fi" type="number" value={abandonInst.appPostageAmt} onChange={e=>updAbandonInst({appPostageAmt:e.target.value})} placeholder="0"/></div>
+                </div>
+                <div style={{textAlign:'right',fontWeight:700,color:'#1b3a5e'}}>신청 소계: {fmt(N(abandonInst.appStampAmt)+N(abandonInst.appPostageAmt))}</div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* ══ 문서 패널 ══ */}
+        <div className="doc-panel">
+          {/* 수정 13: 섹션별 인쇄 툴바 */}
+          <div className="doc-toolbar no-print">
+            {isGlobalWin && !showPetition && (
+              <>
+                <button className="tbtn" onClick={()=>printSection('calc')}>🖨 계산서 인쇄</button>
+                <button className="tbtn" onClick={()=>printSection('calc')}>💾 계산서 PDF 저장</button>
+                <span className="tsep">|</span>
+                <button className="tbtn tbtn-sec" onClick={()=>{setPetitionKey(k=>k+1);setShowPetition(true);}}>📄 신청서 보기</button>
+              </>
+            )}
+            {isGlobalWin && showPetition && (
+              <>
+                <button className="tbtn" onClick={()=>printSection('petition')}>🖨 신청서 인쇄</button>
+                <button className="tbtn" onClick={()=>printSection('petition')}>💾 신청서 PDF 저장</button>
+                <span className="tsep">|</span>
+                <button className="tbtn tbtn-sec" onClick={()=>setShowPetition(false)}>← 계산서로 돌아가기</button>
+              </>
+            )}
+            {isPartialMode && !showPetition && (
+              <>
+                <button className="tbtn" onClick={()=>printSection('calc')}>🖨 계산서 인쇄</button>
+                <button className="tbtn" onClick={()=>printSection('calc')}>💾 계산서 PDF 저장</button>
+                <span className="tsep">|</span>
+                <button className="tbtn tbtn-sec" onClick={()=>{setPetitionKey(k=>k+1);setShowPetition(true);}}>📄 신청서 보기</button>
+              </>
+            )}
+            {isPartialMode && showPetition && (
+              <>
+                <button className="tbtn" onClick={()=>printSection('petition')}>🖨 신청서 인쇄</button>
+                <button className="tbtn" onClick={()=>printSection('petition')}>💾 신청서 PDF 저장</button>
+                <span className="tsep">|</span>
+                <button className="tbtn tbtn-sec" onClick={()=>setShowPetition(false)}>← 계산서로 돌아가기</button>
+              </>
+            )}
+            {isGiveup && (
+              <>
+                <button className="tbtn" onClick={()=>printSection('abandon')}>🖨 포기 문서 인쇄</button>
+                <button className="tbtn" onClick={()=>printSection('abandon')}>💾 포기 문서 PDF 저장</button>
+              </>
+            )}
+          </div>
+
+          {/* 화면 표시 */}
+          <div className="doc-screen-area">
+            <div className="doc-wrap">
+              {isGlobalWin && !showPetition && <WinDoc winInsts={winInsts} confStamp={confStamp} confPost={confPost}/>}
+              {isGlobalWin && showPetition && (
+                <PetitionDoc key={petitionKey} insts={winInsts} grandTotal={winGrand} petition={petition}/>
+              )}
+              {isPartialMode && !showPetition && <PartialDoc partialInsts={partialInsts} pRatioNum={pRatioNum} pRatioDen={pRatioDen} calcMode={partialCalcMode} bonStamp={partialBonStamp} bonPost={partialBonPost}/>}
+              {isPartialMode && showPetition && (
+                <PetitionDoc key={petitionKey} insts={partialInsts} grandTotal={partialGrand} petition={petition}/>
+              )}
+              {isGiveup && <AbandonDoc inst={abandonInst}/>}
+            </div>
+          </div>
+
+          {/* 인쇄 전용 */}
+          <div className="print-all-docs">
+            {(isGlobalWin||isPartialMode) && (
+              <>
+                <div className="print-doc-wrap calc-print-area">
+                  <div className="doc-wrap">
+                    {isGlobalWin && <WinDoc winInsts={winInsts} confStamp={confStamp} confPost={confPost}/>}
+                    {isPartialMode && <PartialDoc partialInsts={partialInsts} pRatioNum={pRatioNum} pRatioDen={pRatioDen} calcMode={partialCalcMode} bonStamp={partialBonStamp} bonPost={partialBonPost}/>}
+                  </div>
+                </div>
+                <div className="print-doc-wrap petition-print-area">
+                  <div className="doc-wrap">
+                    <PetitionDoc key={petitionKey}
+                      insts={isGlobalWin?winInsts:partialInsts}
+                      grandTotal={isGlobalWin?winGrand:partialGrand}
+                      petition={petition}/>
+                  </div>
+                </div>
+              </>
+            )}
+            {isGiveup && abandonInsts.map((inst,i)=>(
+              <div key={i} className="print-doc-wrap">
+                <div className="doc-wrap"><AbandonDoc inst={inst}/></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
