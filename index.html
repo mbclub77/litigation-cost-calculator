@@ -1074,6 +1074,22 @@ const App = () => {
     if(section === 'calc') document.title = '소송비용계산서';
     else if(section === 'petition') document.title = '소송비용액확정신청서';
     else if(section === 'abandon') document.title = '소송비용계산서(포기)';
+
+    /* 화면에서 수기 수정된 내용을 인쇄 영역에 복사 */
+    const screenWrap = document.querySelector('.doc-screen-area .doc-wrap');
+    if(screenWrap) {
+      if(section === 'calc') {
+        const printCalc = document.querySelector('.calc-print-area .doc-wrap');
+        if(printCalc) printCalc.innerHTML = screenWrap.innerHTML;
+      } else if(section === 'petition') {
+        const printPet = document.querySelector('.petition-print-area .doc-wrap');
+        if(printPet) printPet.innerHTML = screenWrap.innerHTML;
+      } else if(section === 'abandon') {
+        const printAban = document.querySelector('.abandon-print-area .doc-wrap');
+        if(printAban) printAban.innerHTML = screenWrap.innerHTML;
+      }
+    }
+
     document.body.setAttribute('data-print', section);
     const cleanup = () => {
       document.body.removeAttribute('data-print');
@@ -1568,7 +1584,7 @@ const App = () => {
               </>
             )}
             {isGiveup && abandonInsts.map((inst,i)=>(
-              <div key={i} className="print-doc-wrap">
+              <div key={i} className="print-doc-wrap abandon-print-area">
                 <div className="doc-wrap"><AbandonDoc inst={inst}/></div>
               </div>
             ))}
