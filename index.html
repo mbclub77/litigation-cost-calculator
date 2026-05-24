@@ -30,8 +30,8 @@ body{font-family:'Malgun Gothic','맑은 고딕',Arial,sans-serif;font-size:14px
 .itab-add:hover{border-color:#1b3a5e;color:#1b3a5e;background:#e8f0fb;}
 .itab-del{padding:7px 12px;border:2px solid #e8d0d0;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;background:#fff7f7;color:#c0392b;font-family:inherit;}
 .itab-del:hover{background:#c0392b;color:#fff;border-color:#c0392b;}
-.layout{display:flex;min-height:calc(100vh - 150px);}
-.inp{width:440px;min-width:400px;background:#f4f6f8;padding:16px;overflow-y:auto;border-right:1px solid #dde3ea;}
+.layout{display:flex;height:calc(100vh - 150px);overflow:hidden;}
+.inp{width:440px;min-width:400px;background:#f4f6f8;padding:16px;overflow-y:auto;border-right:1px solid #dde3ea;height:100%;box-sizing:border-box;}
 .sec{background:#fff;border-radius:8px;padding:14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.07);}
 .sec-title{font-size:13px;font-weight:700;color:#1b3a5e;margin-bottom:10px;padding-bottom:7px;border-bottom:2px solid #e8f0fb;}
 .sec-chk-title{display:flex;align-items:center;gap:8px;cursor:pointer;}
@@ -71,7 +71,7 @@ body{font-family:'Malgun Gothic','맑은 고딕',Arial,sans-serif;font-size:14px
 .party-toggle{display:flex;gap:0;margin-bottom:12px;border:2px solid #1b3a5e;border-radius:8px;overflow:hidden;}
 .party-tab{flex:1;padding:8px 4px;text-align:center;cursor:pointer;font-size:12px;font-weight:700;background:#fff;color:#555;font-family:inherit;border:none;}
 .party-tab.active{background:#1b3a5e;color:#fff;}
-.doc-panel{flex:1;background:#d8dce0;overflow-y:auto;display:flex;flex-direction:column;align-items:center;}
+.doc-panel{flex:1;background:#d8dce0;overflow-y:auto;display:flex;flex-direction:column;align-items:center;height:100%;}
 .doc-toolbar{background:#e0e4e8;padding:10px 20px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-bottom:2px solid #c8cdd2;width:100%;}
 .tbtn{padding:7px 14px;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:700;background:#1b3a5e;color:#fff;}
 .tbtn:hover{opacity:.85;}
@@ -515,46 +515,58 @@ const WinDoc = ({winInsts, confStamp, confPost, respondentName='', respCount=1, 
 /* ── PartialDoc: PDF 표 구조 완전 반영 ── */
 const PartialDoc = ({partialInsts, pRatioNum, pRatioDen, calcMode='both', bonStamp='', bonPost='',
   respondentName='', respCount=1, respRatioNum=null, respRatioDen=null,
-  respPRatioNum=null, respPRatioDen=null}) => {
+  respPRatioNum=null, respPRatioDen=null, respDInsts=null,
+  respPConfEnabled=null, respPConfStamp=null, respPConfPost=null}) => {
 
-  /* 피신청인별 신청인↔피신청인 부담비율: 피신청인별 값 우선, 없으면 전역 */
-  const effPN = (respPRatioNum !== null && respPRatioNum !== undefined) ? respPRatioNum : pRatioNum;
-  const effPD = (respPRatioDen !== null && respPRatioDen !== undefined) ? respPRatioDen : pRatioDen;
-  const rNum = parseInt(effPN)||0;   /* 피신청인 부담 분자 */
-  const rDen = parseInt(effPD)||10;  /* 분모 */
+  const effPN = (respPRatioNum!==null&&respPRatioNum!==undefined)?respPRatioNum:pRatioNum;
+  const effPD = (respPRatioDen!==null&&respPRatioDen!==undefined)?respPRatioDen:pRatioDen;
+  const rNum = parseInt(effPN)||0;
+  const rDen = parseInt(effPD)||10;
+  const useRespRatio = respRatioNum!==null&&respRatioDen!==null;
+  const rRN = useRespRatio?(parseInt(respRatioNum)||1):1;
+  const rRD = useRespRatio?(parseInt(respRatioDen)||1):1;
 
-  /* 피신청인 간 분할비율 */
-  const useRespRatio = respRatioNum !== null && respRatioDen !== null;
-  const rRN = useRespRatio ? (parseInt(respRatioNum)||1) : 1;
-  const rRD = useRespRatio ? (parseInt(respRatioDen)||1) : 1;
-
-  /* 심급별 신청인/피신청인 비용 */
-  const instData = partialInsts.map(pi => {
+  /* respDInsts가 있으면 피신청인별 독립 d 데이터 사용 */
+  const instData = partialInsts.map((pi,idx)=>{
     const pItems = getInstItems(toWinView(pi,'p'));
-    const dItems = getInstItems(toWinView(pi,'d'));
+    const dSrc = (respDInsts&&respDInsts[idx]) ? {...pi, d:respDInsts[idx].d} : pi;
+    const dItems = getInstItems(toWinView(dSrc,'d'));
     return {
-      inst: pi,
+      inst:pi, dSrc,
       pItems, dItems,
-      pAmt: pItems.reduce((s,i)=>s+i.amount, 0),
-      dAmt: dItems.reduce((s,i)=>s+i.amount, 0),
+      pAmt: pItems.reduce((s,i)=>s+i.amount,0),
+      dAmt: dItems.reduce((s,i)=>s+i.amount,0),
     };
   });
 
-  const pTotal = instData.reduce((s,d)=>s+d.pAmt, 0);
-  const dTotal = instData.reduce((s,d)=>s+d.dAmt, 0);
+  const pTotal = instData.reduce((s,d)=>s+d.pAmt,0);
+  const dTotal = instData.reduce((s,d)=>s+d.dAmt,0);
 
-  /* ÷N 분할 (PDF: 총 본안비용×1/2) */
-  const pSplit = Math.round(pTotal * rRN / rRD);
-  const dSplit = Math.round(dTotal * rRN / rRD);
-  const splitTotal = pSplit + dSplit;
+  /* ── 본안소송 소계(A) — 피신청인 간 비율·부담비율 적용 ── */
+  const pSplitA = Math.round(pTotal * rRN / rRD);
+  const dSplitA = Math.round(dTotal * rRN / rRD);
+  const splitATotal = pSplitA + dSplitA;
+  const pBurdenA = Math.round(splitATotal * (rDen - rNum) / rDen);
+  const dBurdenA = Math.round(splitATotal * rNum / rDen);
+  const claimA_p = pSplitA - pBurdenA;
+  const claimA_d = dSplitA - dBurdenA;
 
-  /* 부담비율 적용 (PDF: 8:2) */
-  const pBurden = Math.round(splitTotal * (rDen - rNum) / rDen);
-  const dBurden = Math.round(splitTotal * rNum / rDen);
+  /* ── 신청비용 소계(B) — A와 완전 독립, 부담비율 미적용 ── */
+  const pConfStampVal = respPConfEnabled!==null
+    ? (respPConfEnabled ? N(respPConfStamp) : 0)
+    : partialInsts.reduce((s,pi)=>s+(pi.p.confEnabled?N(pi.p.confStamp):0), 0);
+  const pConfPostVal  = respPConfEnabled!==null
+    ? (respPConfEnabled ? N(respPConfPost) : 0)
+    : partialInsts.reduce((s,pi)=>s+(pi.p.confEnabled?N(pi.p.confPost):0), 0);
+  const pConfTotal = pConfStampVal + pConfPostVal;
+  const dConfStampTotal = instData.reduce((s,d)=>s+(d.dSrc.d.confEnabled?N(d.dSrc.d.confStamp):0),0);
+  const dConfPostTotal  = instData.reduce((s,d)=>s+(d.dSrc.d.confEnabled?N(d.dSrc.d.confPost):0),0);
+  const dConfTotal = dConfStampTotal + dConfPostTotal;
+  const hasConfB = pConfTotal > 0 || dConfTotal > 0;
 
-  /* 청구가능 본안소송비용(A) = 자기소계 - 자기부담액 (PDF 역산 확인) */
-  const claimA_p = pSplit - pBurden;   /* 신청인 입장: 양수=받음, 음수=지급 */
-  const claimA_d = dSplit - dBurden;   /* 피신청인 입장 */
+  /* ── 총합계(A+B) ── */
+  const pGrandAB = (claimA_p >= 0 ? claimA_p : 0) + pConfTotal;
+  const dGrandAB = (claimA_d >= 0 ? claimA_d : 0) + dConfTotal;
 
   const bonTotal = N(bonStamp)+N(bonPost);
   const anyAttyEnabled = partialInsts.some(pi=>pi.p.attyEnabled||pi.d.attyEnabled);
@@ -615,11 +627,13 @@ const PartialDoc = ({partialInsts, pRatioNum, pRatioDen, calcMode='both', bonSta
                       <td contentEditable suppressContentEditableWarning style={{fontSize:12}}>
                         {(row.p||row.d)?.desc?.split('\n')[0]||''}
                       </td>
-                      <td className="amt" contentEditable suppressContentEditableWarning>
-                        {row.p && row.p.amount>0 ? fmt(row.p.amount) : ''}
+                      <td className="amt" contentEditable suppressContentEditableWarning
+                        style={row.p&&row.p.amount<0?{color:'#c0392b'}:{}}>
+                        {row.p&&row.p.amount!==0?(row.p.amount<0?`−${fmt(Math.abs(row.p.amount))}`:fmt(row.p.amount)):''}
                       </td>
-                      <td className="amt" contentEditable suppressContentEditableWarning>
-                        {row.d && row.d.amount>0 ? fmt(row.d.amount) : ''}
+                      <td className="amt" contentEditable suppressContentEditableWarning
+                        style={row.d&&row.d.amount<0?{color:'#c0392b'}:{}}>
+                        {row.d&&row.d.amount!==0?(row.d.amount<0?`−${fmt(Math.abs(row.d.amount))}`:fmt(row.d.amount)):''}
                       </td>
                       <td contentEditable suppressContentEditableWarning style={{fontSize:10,lineHeight:1.5}}>
                         {(row.p||row.d)?.note||''}
@@ -629,31 +643,18 @@ const PartialDoc = ({partialInsts, pRatioNum, pRatioDen, calcMode='both', bonSta
                 </React.Fragment>
               );
             })}
-            {/* 본안비용 소계 행 */}
+            {/* 본안소송 소계(A) */}
             <tr className="wsub">
               <td colSpan="2" contentEditable suppressContentEditableWarning className="rgt">
-                본안비용 소계(A){splitLabel && ` (총 본안비용${splitLabel})`}
+                본안소송 소계(A){splitLabel&&` (×${rRN}/${rRD})`}
               </td>
-              <td className="amt" contentEditable suppressContentEditableWarning>{fmt(pSplit)}</td>
-              <td className="amt" contentEditable suppressContentEditableWarning>{fmt(dSplit)}</td>
+              <td className="amt" contentEditable suppressContentEditableWarning>{fmt(pSplitA)}</td>
+              <td className="amt" contentEditable suppressContentEditableWarning>{fmt(dSplitA)}</td>
               <td contentEditable suppressContentEditableWarning style={{fontSize:10,color:'#555'}}>
-                {useRespRatio
-                  ? `총 ${fmt(pTotal+dTotal)}원 × ${rRN}/${rRD}`
-                  : `신청인 ${fmt(pTotal)}원 / 피신청인 ${fmt(dTotal)}원`}
+                {useRespRatio?`신청인 ${fmt(pTotal)}×${rRN}/${rRD} / 피신청인 ${fmt(dTotal)}×${rRN}/${rRD}`:`신청인 ${fmt(pTotal)} / 피신청인 ${fmt(dTotal)}`}
               </td>
             </tr>
-            {/* 부담비율에 따른 비용 행 */}
-            <tr style={{background:'#f0f4f8',fontWeight:700}}>
-              <td colSpan="2" contentEditable suppressContentEditableWarning className="rgt" style={{fontSize:12}}>
-                부담비율에 따른 비용 ({rDen-rNum}:{rNum})
-              </td>
-              <td className="amt" contentEditable suppressContentEditableWarning>{fmt(pBurden)}</td>
-              <td className="amt" contentEditable suppressContentEditableWarning>{fmt(dBurden)}</td>
-              <td contentEditable suppressContentEditableWarning style={{fontSize:10,color:'#555'}}>
-                합계 {fmt(splitTotal)}원 × 신청인{rDen-rNum}/{rDen} / 피신청인{rNum}/{rDen}
-              </td>
-            </tr>
-            {/* 청구가능 본안소송비용(A) 행 */}
+            {/* 청구가능 본안소송비용(A) */}
             <tr className="wttl">
               <td colSpan="2" contentEditable suppressContentEditableWarning className="rgt">
                 청구 가능 본안 소송비용(A)
@@ -667,9 +668,50 @@ const PartialDoc = ({partialInsts, pRatioNum, pRatioDen, calcMode='both', bonSta
                 {claimA_d>=0 ? fmt(claimA_d) : `−${fmt(Math.abs(claimA_d))}`}
               </td>
               <td contentEditable suppressContentEditableWarning style={{fontSize:10}}>
-                {`신청인: ${fmt(pSplit)}−${fmt(pBurden)} / 피신청인: ${fmt(dSplit)}−${fmt(dBurden)}`}
+                {`신청인: ${fmt(pSplitA)}−${fmt(pBurdenA)} / 피신청인: ${fmt(dSplitA)}−${fmt(dBurdenA)}`}
               </td>
             </tr>
+            {/* 신청비용(B) + 총합계(A+B) — B 입력 시만 */}
+            {hasConfB&&(
+              <>
+                {(pConfStampVal>0||dConfStampTotal>0)&&(
+                  <tr style={{background:'#f5f8ff'}}>
+                    <td colSpan="2" contentEditable suppressContentEditableWarning className="rgt" style={{fontSize:11}}>소송비용액확정신청 인지대</td>
+                    <td className="amt" contentEditable suppressContentEditableWarning>{pConfStampVal>0?fmt(pConfStampVal):''}</td>
+                    <td className="amt" contentEditable suppressContentEditableWarning>{dConfStampTotal>0?fmt(dConfStampTotal):''}</td>
+                    <td contentEditable suppressContentEditableWarning></td>
+                  </tr>
+                )}
+                {(pConfPostVal>0||dConfPostTotal>0)&&(
+                  <tr style={{background:'#f5f8ff'}}>
+                    <td colSpan="2" contentEditable suppressContentEditableWarning className="rgt" style={{fontSize:11}}>소송비용액확정신청 송달료</td>
+                    <td className="amt" contentEditable suppressContentEditableWarning>{pConfPostVal>0?fmt(pConfPostVal):''}</td>
+                    <td className="amt" contentEditable suppressContentEditableWarning>{dConfPostTotal>0?fmt(dConfPostTotal):''}</td>
+                    <td contentEditable suppressContentEditableWarning></td>
+                  </tr>
+                )}
+                <tr className="wsub">
+                  <td colSpan="2" contentEditable suppressContentEditableWarning className="rgt">신청비용 소계(B)</td>
+                  <td className="amt" contentEditable suppressContentEditableWarning>{pConfTotal>0?fmt(pConfTotal):''}</td>
+                  <td className="amt" contentEditable suppressContentEditableWarning>{dConfTotal>0?fmt(dConfTotal):''}</td>
+                  <td contentEditable suppressContentEditableWarning></td>
+                </tr>
+                <tr className="wttl">
+                  <td colSpan="2" contentEditable suppressContentEditableWarning className="rgt">총합계(A+B)</td>
+                  <td className="amt" contentEditable suppressContentEditableWarning
+                    style={{color:pGrandAB>=0?'#27ae60':'#c0392b'}}>
+                    {pGrandAB>=0?fmt(pGrandAB):`−${fmt(Math.abs(pGrandAB))}`}
+                  </td>
+                  <td className="amt" contentEditable suppressContentEditableWarning
+                    style={{color:dGrandAB>=0?'#27ae60':'#c0392b'}}>
+                    {dGrandAB>=0?fmt(dGrandAB):`−${fmt(Math.abs(dGrandAB))}`}
+                  </td>
+                  <td contentEditable suppressContentEditableWarning style={{fontSize:10}}>
+                    {`신청인 청구A(${fmt(claimA_p>=0?claimA_p:0)})+B(${fmt(pConfTotal)}) / 피신청인 청구A(${fmt(claimA_d>=0?claimA_d:0)})+B(${fmt(dConfTotal)})`}
+                  </td>
+                </tr>
+              </>
+            )}
           </tbody>
         </table>
       )}
@@ -1144,8 +1186,10 @@ const App = () => {
   /* ── 계산서용 피신청인 목록 ── */
   const mkResp = (n, pRN='7', pRD='10') => ({
     name:`피신청인 ${n}`,
-    ratioNum:'1', ratioDen:String(n),   /* 피신청인 간 분할비율 */
-    pRatioNum:pRN, pRatioDen:pRD,       /* 신청인↔피신청인 부담비율 */
+    ratioNum:'1', ratioDen:String(n),
+    pRatioNum:pRN, pRatioDen:pRD,
+    pConfEnabled:false, pConfStamp:'', pConfPost:'',
+    dInsts:[{d: mkParty()}],
   });
   const [respondents,    setRespondents]    = useState([mkResp(1)]);
   const [respActiveIdx,  setRespActiveIdx]  = useState(0);
@@ -1229,15 +1273,6 @@ const App = () => {
   /* ── 일부승소 관리 ── */
   const partialInst = partialInsts[partialActiveIdx];
   const updPartialInst = upd => setPartialInsts(prev=>{const nx=[...prev];nx[partialActiveIdx]={...nx[partialActiveIdx],...upd};return nx;});
-  const updParty = (party, upd) => updPartialInst({[party]:{...partialInst[party],...upd}});
-  const updPartySec = (party, u) => updParty(party, {sec:{...partialInst[party].sec,...u}});
-  const addPartyTravel = (party,dep,dest,fare) => updParty(party,{travels:[...partialInst[party].travels,
-    {dep:dep||'',dest:dest||'',fare:fare?String(fare):'',trips:'1',enabled:true,amt:'',note:''}]});
-  const removePartyTravel = (party,i) => updParty(party,{travels:partialInst[party].travels.filter((_,j)=>j!==i)});
-  const updPartyTravelField = (party,ti,field,val) => setPartialInsts(prev=>{
-    const nx=[...prev]; const ts=[...nx[partialActiveIdx][party].travels];
-    ts[ti]={...ts[ti],[field]:val}; nx[partialActiveIdx]={...nx[partialActiveIdx],[party]:{...nx[partialActiveIdx][party],travels:ts}}; return nx;
-  });
   const addPartialInstance = () => {
     if(partialInsts.length>=INSTANCE_LABELS.length) return;
     setPartialInsts(prev=>[...prev,defaultPartialInst(INSTANCE_LABELS[prev.length])]);
@@ -1252,6 +1287,13 @@ const App = () => {
   const resetPartialInst = () => {
     if(!confirm('현재 심급의 모든 입력값을 초기화하시겠습니까?')) return;
     setPartialInsts(prev=>{const nx=[...prev];nx[partialActiveIdx]=defaultPartialInst(partialInst.label);return nx;});
+    setRespondents(prev=>{
+      const nx=[...prev], cur=nx[respActiveIdx];
+      const di=[...(cur.dInsts||[{d:mkParty()}])];
+      di[partialActiveIdx]={d:mkParty()};
+      nx[respActiveIdx]={...cur, dInsts:di};
+      return nx;
+    });
   };
   const pTotalAll = partialInsts.reduce((s,pi)=>{
     const items=getInstItems(toWinView(pi,'p')); return s+items.reduce((ss,i)=>ss+i.amount,0);
@@ -1315,9 +1357,60 @@ const App = () => {
   const deleteInst    = isGlobalWin ? deleteWinInstance : isPartialMode ? deletePartialInstance : deleteAbandonInstance;
   const setActiveIdx  = isGlobalWin ? setWinActiveIdx : isPartialMode ? setPartialActiveIdx : setAbandonActiveIdx;
 
-  /* 현재 party 데이터 */
+  /* 현재 party 데이터 — pp=d이면 curResp.dInsts 기반(피신청인별 독립) */
   const pp = partialParty; // 'p' | 'd'
-  const partyData = isPartialMode ? partialInst[pp] : null;
+  const _dArr = curResp?.dInsts || [{d: mkParty()}];
+  const _dCur = _dArr[partialActiveIdx] || {d: mkParty()};
+  const partyData = isPartialMode
+    ? (pp === 'd' ? _dCur.d : partialInst[pp])
+    : null;
+
+  /* updParty: pp=d면 respondents.dInsts 업데이트, pp=p면 기존 방식 */
+  const updParty = (party, upd) => {
+    if(party === 'd' && isPartialMode){
+      setRespondents(prev=>{
+        const nx=[...prev], cur=nx[respActiveIdx];
+        const di=[...(cur.dInsts||[{d:mkParty()}])];
+        while(di.length<=partialActiveIdx) di.push({d:mkParty()});
+        di[partialActiveIdx]={...di[partialActiveIdx], d:{...(di[partialActiveIdx].d||mkParty()),...upd}};
+        nx[respActiveIdx]={...cur, dInsts:di};
+        return nx;
+      });
+    } else {
+      updPartialInst({[party]:{...partialInst[party],...upd}});
+    }
+  };
+  const updPartySec = (party, u) => {
+    const curSec=(party==='d'&&isPartialMode)?(_dCur.d.sec||{}):partialInst[party].sec;
+    updParty(party,{sec:{...curSec,...u}});
+  };
+  const addPartyTravel = (party,dep,dest,fare) => {
+    const cur=(party==='d'&&isPartialMode)?(_dCur.d.travels||[]):partialInst[party].travels;
+    updParty(party,{travels:[...cur,{dep:dep||'',dest:dest||'',fare:fare?String(fare):'',trips:'1',enabled:true,amt:'',note:''}]});
+  };
+  const removePartyTravel = (party,i) => {
+    const cur=(party==='d'&&isPartialMode)?(_dCur.d.travels||[]):partialInst[party].travels;
+    updParty(party,{travels:cur.filter((_,j)=>j!==i)});
+  };
+  const updPartyTravelField = (party,ti,field,val) => {
+    if(party==='d'&&isPartialMode){
+      setRespondents(prev=>{
+        const nx=[...prev], cur=nx[respActiveIdx];
+        const di=[...(cur.dInsts||[{d:mkParty()}])];
+        while(di.length<=partialActiveIdx) di.push({d:mkParty()});
+        const ts=[...(di[partialActiveIdx].d.travels||[])];
+        ts[ti]={...ts[ti],[field]:val};
+        di[partialActiveIdx]={...di[partialActiveIdx],d:{...di[partialActiveIdx].d,travels:ts}};
+        nx[respActiveIdx]={...cur,dInsts:di};
+        return nx;
+      });
+    } else {
+      setPartialInsts(prev=>{
+        const nx=[...prev]; const ts=[...nx[partialActiveIdx][party].travels];
+        ts[ti]={...ts[ti],[field]:val}; nx[partialActiveIdx]={...nx[partialActiveIdx],[party]:{...nx[partialActiveIdx][party],travels:ts}}; return nx;
+      });
+    }
+  };
 
   /* 승소 grand total 문자열 */
   const grandLabelWin = `${bonAnLabel_win}+${confLabel_win}`;
@@ -1675,29 +1768,28 @@ const App = () => {
                       <input className="fi" value={partyData.otherNote} onChange={e=>updParty(pp,{otherNote:e.target.value})}/></div>
                   </div>
                 </ItemSection>
-                <ItemSection label="📋 소송비용확정 신청비용" enabled={partyData.confEnabled} onToggle={()=>updParty(pp,{confEnabled:!partyData.confEnabled})}>
+                <ItemSection label="📋 소송비용확정 신청비용"
+                  enabled={pp==='p'&&respCount>1 ? curResp.pConfEnabled : partyData.confEnabled}
+                  onToggle={()=>{ if(pp==='p'&&respCount>1){ updResp({pConfEnabled:!curResp.pConfEnabled}); } else { updParty(pp,{confEnabled:!partyData.confEnabled}); } }}>
                   <div className="frow">
                     <div className="fg"><label className="fl">신청서 인지대 (원)</label>
-                      <input className="fi" type="number" value={partyData.confStamp} onChange={e=>updParty(pp,{confStamp:e.target.value})} placeholder="0"/></div>
+                      <input className="fi" type="number"
+                        value={pp==='p'&&respCount>1 ? (curResp.pConfStamp||'') : partyData.confStamp}
+                        onChange={e=>{ if(pp==='p'&&respCount>1){ updResp({pConfStamp:e.target.value}); } else { updParty(pp,{confStamp:e.target.value}); } }}
+                        placeholder="0"/></div>
                     <div className="fg"><label className="fl">송달료 (원)</label>
-                      <input className="fi" type="number" value={partyData.confPost} onChange={e=>updParty(pp,{confPost:e.target.value})} placeholder="0"/></div>
+                      <input className="fi" type="number"
+                        value={pp==='p'&&respCount>1 ? (curResp.pConfPost||'') : partyData.confPost}
+                        onChange={e=>{ if(pp==='p'&&respCount>1){ updResp({pConfPost:e.target.value}); } else { updParty(pp,{confPost:e.target.value}); } }}
+                        placeholder="0"/></div>
                   </div>
+                  {pp==='p'&&respCount>1&&(
+                    <div style={{fontSize:11,color:'#c0392b',marginTop:4}}>※ {curResp.name}에 대한 신청비용 (피신청인별 독립)</div>
+                  )}
                   <div style={{textAlign:'right',fontWeight:700,color:'#1b3a5e',fontSize:12,marginTop:4}}>
-                    소계: {fmt(N(partyData.confStamp)+N(partyData.confPost))}
+                    소계: {fmt(pp==='p'&&respCount>1 ? N(curResp.pConfStamp)+N(curResp.pConfPost) : N(partyData.confStamp)+N(partyData.confPost))}
                   </div>
                 </ItemSection>
-              </div>
-              {/* 상환금액 미리보기 */}
-              <div className="sec" style={{background:reimbursement_p>=0?'#fff8f0':'#fff0f0',borderLeft:`4px solid ${reimbursement_p>=0?'#d35400':'#c0392b'}`}}>
-                <div className="sec-title" style={{color:reimbursement_p>=0?'#d35400':'#922b21'}}>💵 청구가능 본안소송비용(A) 미리보기</div>
-                <div style={{fontSize:11,color:'#888',marginBottom:4}}>
-                  피신청인 부담비율 {rNum_p}/{rDen_p}
-                  {respCount>1 && ` / 피신청인 간 ${curResp.ratioNum}/${curResp.ratioDen}`}
-                  {` → 신청인 ${fmt(pSplit_p)}−${fmt(pBurden_p)} = ${fmt(reimbursement_p)}`}
-                </div>
-                <div style={{fontSize:20,fontWeight:700,color:reimbursement_p>=0?'#d35400':'#922b21',textAlign:'right'}}>
-                  {reimbursement_p>=0?'↑ 신청인이 받을 금액(A): ':'↓ 신청인이 지급할 금액: '}{fmt(Math.abs(Math.round(reimbursement_p)))}
-                </div>
               </div>
               <PetitionInput petition={petition} onUpdate={updPetition} firstInstCourt={partialInsts[0]?.court}/>
             </>
@@ -1822,7 +1914,11 @@ const App = () => {
                 respRatioNum={respCount>1?curResp.ratioNum:null}
                 respRatioDen={respCount>1?curResp.ratioDen:null}
                 respPRatioNum={curResp.pRatioNum||null}
-                respPRatioDen={curResp.pRatioDen||null}/>}
+                respPRatioDen={curResp.pRatioDen||null}
+                respDInsts={curResp.dInsts||null}
+                respPConfEnabled={respCount>1?(curResp.pConfEnabled||false):null}
+                respPConfStamp={respCount>1?(curResp.pConfStamp||''):null}
+                respPConfPost={respCount>1?(curResp.pConfPost||''):null}/>}
               {isPartialMode && showPetition && (
                 <PetitionDoc key={petitionKey} insts={partialInsts} grandTotal={partialGrand} petition={petition}/>
               )}
@@ -1851,7 +1947,11 @@ const App = () => {
                         respRatioNum={respCount>1?resp.ratioNum:null}
                         respRatioDen={respCount>1?resp.ratioDen:null}
                         respPRatioNum={resp.pRatioNum||null}
-                        respPRatioDen={resp.pRatioDen||null}/>}
+                        respPRatioDen={resp.pRatioDen||null}
+                        respDInsts={resp.dInsts||null}
+                        respPConfEnabled={respCount>1?(resp.pConfEnabled||false):null}
+                        respPConfStamp={respCount>1?(resp.pConfStamp||''):null}
+                        respPConfPost={respCount>1?(resp.pConfPost||''):null}/>}
                     </div>
                   </div>
                 ))}
