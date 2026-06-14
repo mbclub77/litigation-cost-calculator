@@ -1,13 +1,13 @@
 {
   "extraKnownMarketplaces": {
-    "fable-ish-marketplace": {
+    "fable-ish": {
       "source": {
-        "source": "directory",
-        "path": "."
+        "source": "github",
+        "repo": "chrisryugj/fable-ish"
       }
     }
   },
   "enabledPlugins": {
-    "fable-ish@fable-ish-marketplace": true
+    "fable-ish@fable-ish": true
   }
 }
