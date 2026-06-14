@@ -1,0 +1,13 @@
+{
+  "name": "fable-ish-marketplace",
+  "owner": {
+    "name": "mbclub77"
+  },
+  "plugins": [
+    {
+      "name": "fable-ish",
+      "source": "./plugins/fable-ish",
+      "description": "Empty scaffold plugin for fable-ish."
+    }
+  ]
+}
