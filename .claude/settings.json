@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "fable-ish-marketplace": {
+      "source": {
+        "source": "directory",
+        "path": "."
+      }
+    }
+  },
+  "enabledPlugins": {
+    "fable-ish@fable-ish-marketplace": true
+  }
+}
