@@ -1053,6 +1053,66 @@ function typeEnabled(t){
   return true;
 }
 
+// ─── 형태소 기반 조사·어미 자동 검출 ────────────────────────────────────────
+// 한글 음절(가~힣) 종성 인덱스: 0=받침없음, 8=ㄹ
+function _jong(ch){const c=ch.charCodeAt(0);return(c>=0xAC00&&c<=0xD7A3)?(c-0xAC00)%28:-1;}
+function _isHan(ch){const c=ch.charCodeAt(0);return c>=0xAC00&&c<=0xD7A3;}
+function _isBound(ch){return!ch||/[\s,.!?;:·"'()\[\]{}\n\r]/.test(ch);}
+
+function runMorphCheck(text,errors){
+  if(!typeEnabled('grammar'))return;
+  const n=text.length;
+  for(let i=0;i<n;i++){
+    const prev=i>0?text[i-1]:'';
+    if(!_isHan(prev))continue;          // 앞 글자가 한글이 아니면 건너뜀
+    const pj=_jong(prev);               // 앞 글자의 종성(받침)
+    const ch=text[i];
+    const nxt=i+1<n?text[i+1]:'';
+    const s2=text.slice(i,i+2);
+    const s3=text.slice(i,i+3);
+
+    // ── 이에요 ↔ 예요 ──────────────────────────────────────────────────────
+    // 받침 없는 말 + 이에요 → 예요  (나무이에요 → 나무예요)
+    if(s3==='이에요'&&pj===0)
+      errors.push({pos:i-1,len:4,original:prev+'이에요',correction:prev+'예요',
+        type:'grammar',reason:'받침 없는 말 뒤에는 \'예요\'를 씁니다.'});
+    // 받침 있는 말 + 예요 → 이에요  (사람예요 → 사람이에요)
+    if(s2==='예요'&&pj>0)
+      errors.push({pos:i-1,len:3,original:prev+'예요',correction:prev+'이에요',
+        type:'grammar',reason:'받침 있는 말 뒤에는 \'이에요\'를 씁니다.'});
+
+    // ── 이었 ↔ 였 ─────────────────────────────────────────────────────────
+    // 받침 없는 말 + 이었 → 였  (의사이었다 → 의사였다)
+    if(s2==='이었'&&pj===0)
+      errors.push({pos:i-1,len:3,original:prev+'이었',correction:prev+'였',
+        type:'grammar',reason:'받침 없는 말 뒤에는 \'였\'을 씁니다.'});
+    // 받침 있는 말 + 였 → 이었  (학생였다 → 학생이었다)
+    if(ch==='였'&&pj>0)
+      errors.push({pos:i-1,len:2,original:prev+'였',correction:prev+'이었',
+        type:'grammar',reason:'받침 있는 말 뒤에는 \'이었\'을 씁니다.'});
+
+    // ── 와 ↔ 과 (뒤에 경계 필요) ─────────────────────────────────────────
+    // 받침 있는 말 + 와 → 과  (사람와 → 사람과)
+    if(ch==='와'&&_isBound(nxt)&&pj>0)
+      errors.push({pos:i-1,len:2,original:prev+'와',correction:prev+'과',
+        type:'grammar',reason:'받침 있는 말 뒤에는 \'과\'를 씁니다.'});
+    // 받침 없는 말 + 과 → 와  (학교과 → 학교와)
+    if(ch==='과'&&_isBound(nxt)&&pj===0)
+      errors.push({pos:i-1,len:2,original:prev+'과',correction:prev+'와',
+        type:'grammar',reason:'받침 없는 말 뒤에는 \'와\'를 씁니다.'});
+
+    // ── 으로 ↔ 로  (ㄹ종성=8은 '로') ────────────────────────────────────
+    // 받침없거나 ㄹ받침 + 으로 → 로  (학교으로 → 학교로)
+    if(s2==='으로'&&(pj===0||pj===8))
+      errors.push({pos:i-1,len:3,original:prev+'으로',correction:prev+'로',
+        type:'grammar',reason:'받침 없거나 \'ㄹ\' 받침 뒤에는 \'로\'를 씁니다.'});
+    // ㄹ 외 받침 + 로 → 으로  (집로 → 집으로) — prev=으인 경우 제외(으로 내부)
+    if(ch==='로'&&pj>0&&pj!==8&&prev!=='으')
+      errors.push({pos:i-1,len:2,original:prev+'로',correction:prev+'으로',
+        type:'grammar',reason:'\'ㄹ\' 외 받침 있는 말 뒤에는 \'으로\'를 씁니다.'});
+  }
+}
+
 function runCheck(){
   const text=getInputText().trim();
   if(!text){toast('검사할 내용을 입력하세요');return}
@@ -1081,6 +1141,9 @@ function runCheck(){
         errors.push({pos:m.index,len:orig.length,original:orig,correction:corr,type,reason});
     }
   }
+
+  // 3) 형태소 기반 조사·어미 검사 (이에요/예요, 이었/였, 와/과, 으로/로)
+  runMorphCheck(text,errors);
 
   // 위치순 정렬 + 겹치는 항목 제거
   errors.sort((a,b)=>a.pos-b.pos||b.len-a.len);
