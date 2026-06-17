@@ -129,6 +129,7 @@ body{font-family:'Malgun Gothic','맑은 고딕',sans-serif;background:var(--bg)
       <button class="btn btn-o" onclick="clearInput()">🗑️ 지우기</button>
       <span id="pdfBadge" style="font-size:12px;color:var(--sub)"></span>
     </div>
+    <div id="ollamaBadge" style="margin:6px 0;font-size:12px;padding:5px 12px;border-radius:6px;display:inline-block;background:#f0f0f0;color:#666">⏳ AI 연결 확인 중…</div>
   </div>
 
   <div class="card" id="resultCard">
@@ -1356,6 +1357,102 @@ function runMorphCheck(text,errors){
   }
 }
 
+// ── Ollama AI 맞춤법 검사 연동 ────────────────────────────────────────────
+const OLLAMA_URL = 'http://localhost:11434';
+let ollamaModel = null;
+
+const PREFERRED_MODELS = ['qwen2.5', 'gemma3', 'llama3', 'mistral', 'phi3', 'gemma2'];
+
+async function detectOllama() {
+  const badge = document.getElementById('ollamaBadge');
+  try {
+    const r = await fetch(OLLAMA_URL + '/api/tags', {signal: AbortSignal.timeout(3000)});
+    if (!r.ok) throw new Error();
+    const data = await r.json();
+    const models = (data.models || []).map(m => m.name);
+    if (!models.length) throw new Error('no models');
+
+    // 선호 모델 순서대로 선택
+    for (const pref of PREFERRED_MODELS) {
+      const found = models.find(m => m.startsWith(pref));
+      if (found) { ollamaModel = found; break; }
+    }
+    if (!ollamaModel) ollamaModel = models[0];
+
+    badge.textContent = `🤖 AI 연결됨 (${ollamaModel}) — 고품질 교정 활성화`;
+    badge.style.cssText = 'margin:6px 0;font-size:12px;padding:5px 12px;border-radius:6px;display:inline-block;background:#e6f9ee;color:#1a7a3c';
+  } catch(e) {
+    ollamaModel = null;
+    badge.textContent = '⚪ AI 없음 — 오프라인 규칙으로 검사 (ollama-setup.bat 실행 시 AI 검사 활성화)';
+    badge.style.cssText = 'margin:6px 0;font-size:12px;padding:5px 12px;border-radius:6px;display:inline-block;background:#f5f5f5;color:#888';
+  }
+}
+detectOllama();
+setInterval(detectOllama, 15000);
+
+async function ollamaSpellCheck(text) {
+  const prompt = `당신은 한국어 맞춤법 교정 전문가입니다.
+아래 텍스트에서 맞춤법·띄어쓰기·문법 오류를 모두 찾아주세요.
+
+반드시 JSON 배열 형식만 출력하세요. 다른 말은 절대 하지 마세요.
+오류가 없으면 [] 만 출력하세요.
+
+JSON 형식:
+[{"original":"텍스트에 있는 정확한 원문","correction":"교정된 표현","type":"spell","reason":"교정 이유"}]
+
+type 값 설명:
+- spell: 맞춤법 오류 (예: 어의없다→어이없다)
+- spacing: 띄어쓰기 오류 (예: 할수있다→할 수 있다)
+- grammar: 문법·조사 오류 (예: 되요→돼요, 학교와→학교과→학교와)
+- style: 문체 오류 (이중피동 등)
+
+주의: original 값은 반드시 아래 텍스트에서 그대로 찾을 수 있는 문자열이어야 합니다.
+
+텍스트:
+"""
+${text}
+"""`;
+
+  const resp = await fetch(OLLAMA_URL + '/api/generate', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      model: ollamaModel,
+      prompt,
+      stream: false,
+      options: {temperature: 0.05, top_p: 0.9}
+    }),
+    signal: AbortSignal.timeout(90000)
+  });
+  if (!resp.ok) throw new Error('Ollama 응답 오류 ' + resp.status);
+  const data = await resp.json();
+  const raw = (data.response || '').trim();
+
+  // 마크다운 코드블록 제거 후 JSON 추출
+  const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '');
+  const match = cleaned.match(/\[[\s\S]*\]/);
+  if (!match) return [];
+
+  const errors = JSON.parse(match[0]);
+  const result = [];
+  for (const e of errors) {
+    if (!e.original || !e.correction || e.original === e.correction) continue;
+    // 원본 텍스트에서 위치 탐색 (첫 번째 미처리 위치부터)
+    let searchFrom = 0;
+    const pos = text.indexOf(e.original, searchFrom);
+    if (pos === -1) continue;
+    result.push({
+      pos,
+      len: e.original.length,
+      original: e.original,
+      correction: e.correction,
+      type: ['spell','spacing','grammar','style'].includes(e.type) ? e.type : 'spell',
+      reason: e.reason || ''
+    });
+  }
+  return result;
+}
+
 // ─── 부산대 맞춤법 검사기 외부 연동 ─────────────────────────────────────────
 function openPNU(){
   const text=getInputText().trim();
@@ -1365,9 +1462,30 @@ function openPNU(){
   toast('텍스트가 복사됐습니다 — 네이버 검사기에서 Ctrl+V 붙여넣기 후 검사');
 }
 
-function runCheck(){
+async function runCheck(){
   const text=getInputText().trim();
   if(!text){toast('검사할 내용을 입력하세요');return}
+
+  // AI(Ollama) 모드: 모델이 연결되어 있으면 우선 사용
+  if (ollamaModel) {
+    document.getElementById('resultArea').innerHTML =
+      `<div class="empty"><div class="ico">🤖</div><h3>${ollamaModel} 분석 중…</h3><p>AI가 맞춤법을 교정하고 있습니다 (10~30초)</p></div>`;
+    try {
+      const aiErrors = await ollamaSpellCheck(text);
+      aiErrors.sort((a,b) => a.pos - b.pos || b.len - a.len);
+      const aiClean = []; let aiEnd = -1;
+      for (const e of aiErrors) {
+        if (e.pos >= aiEnd) { aiClean.push(e); aiEnd = e.pos + e.len; }
+      }
+      renderResult(text, aiClean);
+      return;
+    } catch(err) {
+      toast('AI 오류: ' + err.message + ' — 오프라인 규칙으로 전환');
+      ollamaModel = null;
+      detectOllama();
+    }
+  }
+
   const errors=[];
 
   // 1) literal 사전
