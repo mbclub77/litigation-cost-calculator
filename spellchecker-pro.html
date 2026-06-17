@@ -125,7 +125,7 @@ body{font-family:'Malgun Gothic','맑은 고딕',sans-serif;background:var(--bg)
     </div>
     <div class="btn-row">
       <button class="btn btn-p" onclick="runCheck()">🔍 맞춤법 검사</button>
-      <button class="btn" style="background:#1a6fc4;color:#fff" onclick="openPNU()">🌐 부산대 검사기</button>
+      <button class="btn" style="background:#1a6fc4;color:#fff" onclick="openPNU()">🌐 네이버 검사기</button>
       <button class="btn btn-o" onclick="clearInput()">🗑️ 지우기</button>
       <span id="pdfBadge" style="font-size:12px;color:var(--sub)"></span>
     </div>
@@ -654,7 +654,6 @@ const DICT=[
 ['쪽집게','족집게','spell','\'족집게\'가 맞습니다.'],
 ['한거번에','한꺼번에','spell','\'한꺼번에\'가 맞습니다.'],
 ['섯불리','섣불리','spell','\'섣불리\'가 맞습니다.'],
-['설렁','설령','spell','양보 접속사는 \'설령\'입니다.'],
 ['자칫하면','자칫하면','spell',''],
 ['잠금','잠금','spell',''],
 ['잠굼','잠금','spell','\'잠금\'이 맞습니다.'],
@@ -705,7 +704,6 @@ const DICT=[
 ['크레파스','크레파스','spell',''],
 ['크레용','크레용','spell',''],
 ['컬러','컬러','spell',''],
-['칼라','컬러','spell','색상 뜻은 외래어 \'컬러\'. (칼라=collar는 다른 뜻)'],
 ['프린터','프린터','spell',''],
 ['프린트','프린트','spell',''],
 ['스캐너','스캐너','spell',''],
@@ -827,19 +825,6 @@ const DICT=[
 ['불혀지','붙이','style','이중 피동을 피합니다.'],
 
 // ───────── 추가: 번역투·어색한 표현 ─────────
-['에 대한 것','에 관한 것','style','\'에 관한\'이 더 자연스럽습니다.'],
-['을 위한 것','을 위해','style','간결히 \'을 위해\'로.'],
-['에 의한 것','으로 인한','style','\'으로 인한\'이 더 자연스럽습니다.'],
-['시간을 가지','시간이 있','style','\'시간이 있다\'가 더 자연스럽습니다.'],
-['함에 있어서','할 때','style','\'할 때\'로 간결히 씁니다.'],
-['있어서','있어','style',''],
-['~에 있어서','에서','style','\'에서\'로 간결히 씁니다.'],
-['로 하여금','에게 시키','style','\'로 하여금\'은 번역투입니다.'],
-['에 기인한','에서 비롯된','style','\'에서 비롯된\'이 더 자연스럽습니다.'],
-['~를 통해서','를 통해','style','간결히 \'를 통해\'로.'],
-['수행하다','하다','style','\'수행하다\'→\'하다\'로 간결히.'],
-['실시하다','하다','style','\'실시하다\'→\'하다\'로 간결히.'],
-['진행하다','하다','style',''],
 
 // ───────── 추가: 한자어 혼동 ─────────
 ['완치(완쾌)','완쾌','spell','병이 나음은 \'완쾌(完快)\'입니다.'],
@@ -1038,11 +1023,8 @@ const DICT=[
 ['사이트','사이트','spell',''],
 ['프리젠','프레젠','spell','외래어 표기는 \'프레젠테이션\'.'],
 ['플랜트','플랜트','spell',''],
-['핸드폰','휴대폰','spell','권장 표기는 \'휴대폰\'.'],
 ['핸드폰','핸드폰','spell',''],
-['셀카','셀피','spell','표준어는 \'셀피\'입니다.'],
 ['리조트','리조트','spell',''],
-['파마','퍼머','spell','외래어 표기는 \'퍼머(permanent)\'.'],
 ['뉘앙스','뉘앙스','spell',''],
 ['쿠션','쿠션','spell',''],
 ['히스테리','히스테리','spell',''],
@@ -1379,8 +1361,8 @@ function openPNU(){
   const text=getInputText().trim();
   if(!text){toast('검사할 내용을 입력하세요');return}
   navigator.clipboard.writeText(text).catch(()=>{});
-  window.open('https://speller.cs.pusan.ac.kr/','_blank');
-  toast('텍스트가 복사됐습니다 — 새 탭에서 붙여넣기(Ctrl+V) 후 검사하세요');
+  window.open('https://search.naver.com/search.naver?where=nexearch&sm=top_hty&fbm=1&acr=1&query=%EB%A7%9E%EC%B6%A4%EB%B2%95+%EA%B2%80%EC%82%AC%EA%B8%B0','_blank');
+  toast('텍스트가 복사됐습니다 — 네이버 검사기에서 Ctrl+V 붙여넣기 후 검사');
 }
 
 function runCheck(){
