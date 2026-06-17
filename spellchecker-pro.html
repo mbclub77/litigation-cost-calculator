@@ -1534,21 +1534,66 @@ async function detectOllama() {
 detectOllama();
 setInterval(detectOllama, 15000);
 
-async function ollamaSpellCheck(text) {
-  const prompt = `당신은 한국어 맞춤법 교정 전문가입니다.
-아래 텍스트에서 맞춤법·띄어쓰기·문법 오류를 모두 찾아주세요.
+// 두 문자열 사이의 편집 거리(Levenshtein) — AI 환각 교정 필터링용
+function _editDist(a, b) {
+  const m = a.length, n = b.length;
+  if (!m) return n; if (!n) return m;
+  let prev = Array.from({length: n + 1}, (_, i) => i);
+  for (let i = 1; i <= m; i++) {
+    let cur = [i];
+    for (let j = 1; j <= n; j++) {
+      cur[j] = a[i-1] === b[j-1]
+        ? prev[j-1]
+        : 1 + Math.min(prev[j-1], prev[j], cur[j-1]);
+    }
+    prev = cur;
+  }
+  return prev[n];
+}
 
-반드시 JSON 배열 형식만 출력하세요. 다른 말은 절대 하지 마세요.
-오류가 없으면 [] 만 출력하세요.
+// AI 교정이 신뢰할 만한지 검증 — 환각(원문과 전혀 다른 단어)을 걸러냄
+function _isTrustworthy(orig, corr, type) {
+  if (!orig || !corr || orig === corr) return false;
+  const oStrip = orig.replace(/\s/g, '');
+  const cStrip = corr.replace(/\s/g, '');
+  // 띄어쓰기 교정: 공백만 다르고 글자는 완전히 같아야 신뢰
+  if (type === 'spacing') return oStrip === cStrip && oStrip.length > 0;
+  // 그 외: 글자가 너무 많이 바뀌면 환각으로 간주하고 버림
+  if (oStrip === cStrip) return true;               // 공백 차이뿐이면 OK
+  const maxLen = Math.max(oStrip.length, cStrip.length);
+  if (maxLen === 0) return false;
+  // 길이가 60% 이하로 줄거나 1.6배 넘게 늘면 거부 (예: 근로기준법→근으로, 서울특별시→서울시)
+  if (cStrip.length <= oStrip.length * 0.6 || cStrip.length > oStrip.length * 1.6) return false;
+  const dist = _editDist(oStrip, cStrip);
+  // 3글자 이하는 1글자만, 그 이상은 길이의 40%까지만 변경 허용 (동의어 치환 차단)
+  const allowed = maxLen <= 3 ? 1 : Math.max(2, Math.ceil(maxLen * 0.4));
+  return dist <= allowed;
+}
+
+async function ollamaSpellCheck(text) {
+  const prompt = `당신은 매우 신중한 한국어 교정 전문가입니다.
+아래 텍스트에서 "명백하고 확실한" 맞춤법·띄어쓰기·문법 오류만 찾으세요.
+
+[절대 규칙]
+1. 확신이 없으면 절대 고치지 마세요. 의심스러우면 그냥 두세요.
+2. 고유명사·법령명·전문용어·인명·지명·회사명·제품명은 절대 건드리지 마세요.
+   (예: "근로기준법", "민법", "서울특별시", "삼성전자"는 올바른 단어이므로 그대로 둡니다)
+3. 교정은 원문과 글자가 거의 같아야 합니다. 원문과 전혀 다른 단어로 바꾸지 마세요.
+   (잘못된 예: "근로기준법"→"근으로"  ← 이런 식으로 글자를 통째로 바꾸면 안 됩니다)
+4. 띄어쓰기 교정은 공백만 넣거나 빼고, 글자 자체는 바꾸지 마세요.
+5. 멀쩡한 표현을 굳이 바꾸지 마세요. 진짜 틀린 것만 고치세요.
+
+반드시 JSON 배열 형식만 출력하세요. 다른 설명은 절대 하지 마세요.
+오류가 하나도 없으면 [] 만 출력하세요.
 
 JSON 형식:
-[{"original":"텍스트에 있는 정확한 원문","correction":"교정된 표현","type":"spell","reason":"교정 이유"}]
+[{"original":"텍스트에 그대로 있는 원문","correction":"교정된 표현","type":"spell","reason":"이유"}]
 
-type 값 설명:
-- spell: 맞춤법 오류 (예: 어의없다→어이없다)
-- spacing: 띄어쓰기 오류 (예: 할수있다→할 수 있다)
-- grammar: 문법·조사 오류 (예: 되요→돼요, 학교와→학교과→학교와)
-- style: 문체 오류 (이중피동 등)
+type 값:
+- spell: 맞춤법 (예: 어의없다→어이없다, 됬다→됐다)
+- spacing: 띄어쓰기 (예: 할수있다→할 수 있다) — 글자는 그대로, 공백만 조정
+- grammar: 문법·조사 (예: 되요→돼요)
+- style: 문체 (이중피동 등, 예: 보여집니다→보입니다)
 
 주의: original 값은 반드시 아래 텍스트에서 그대로 찾을 수 있는 문자열이어야 합니다.
 
@@ -1581,16 +1626,18 @@ ${text}
   const result = [];
   for (const e of errors) {
     if (!e.original || !e.correction || e.original === e.correction) continue;
-    // 원본 텍스트에서 위치 탐색 (첫 번째 미처리 위치부터)
-    let searchFrom = 0;
-    const pos = text.indexOf(e.original, searchFrom);
+    const type = ['spell','spacing','grammar','style'].includes(e.type) ? e.type : 'spell';
+    // 신뢰도 검증: 원문과 글자가 너무 다른 환각 교정은 버림
+    if (!_isTrustworthy(e.original, e.correction, type)) continue;
+    // 원본 텍스트에서 위치 탐색
+    const pos = text.indexOf(e.original);
     if (pos === -1) continue;
     result.push({
       pos,
       len: e.original.length,
       original: e.original,
       correction: e.correction,
-      type: ['spell','spacing','grammar','style'].includes(e.type) ? e.type : 'spell',
+      type,
       reason: e.reason || ''
     });
   }
