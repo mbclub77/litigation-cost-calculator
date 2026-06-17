@@ -25,8 +25,11 @@ if errorlevel 1 (
 
 echo [2/2] 서버 시작 중...
 echo.
-echo  맞춤법 검사기 HTML 파일을 열면 자동으로 연결됩니다.
+echo  잠시 후 브라우저가 자동으로 열립니다.
 echo  이 창을 닫으면 서버가 종료됩니다.
 echo.
+REM 서버가 뜰 시간을 주고 브라우저 열기
+start "" timeout /t 2 /nobreak >nul
+start "" "http://127.0.0.1:5000"
 python spellcheck-server.py
 pause

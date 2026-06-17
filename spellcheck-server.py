@@ -11,15 +11,15 @@
 접속: http://127.0.0.1:5000
 """
 
-import json
+import os
 import sys
 import time
 import requests
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__)
-# 로컬 HTML 파일(file://)에서 호출할 수 있도록 CORS 허용
 CORS(app, origins=['*'])
 
 PNU_URL    = 'https://speller.cs.pusan.ac.kr/results'
@@ -80,6 +80,11 @@ def pnu_check(text: str) -> list:
 
 # ── 엔드포인트 ────────────────────────────────────────────────────
 
+@app.route('/')
+def index():
+    """HTML 파일을 서버에서 직접 서빙 (CORS 문제 방지)"""
+    return send_from_directory(BASE_DIR, 'spellchecker-pro.html')
+
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({'status': 'ok', 'engine': 'pnu'})
@@ -107,7 +112,8 @@ def check():
 if __name__ == '__main__':
     print('=' * 55)
     print('  한국어 맞춤법 검사 서버 (부산대 API 중계)')
-    print('  주소 : http://127.0.0.1:5000')
+    print('  브라우저에서 아래 주소를 여세요:')
+    print('  >>> http://127.0.0.1:5000 <<<')
     print('  종료 : Ctrl+C')
     print('=' * 55)
     try:

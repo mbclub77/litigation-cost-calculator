@@ -18,7 +18,9 @@ pip3 install flask flask-cors requests -q
 
 echo "[2/2] 서버 시작 중..."
 echo ""
-echo " 맞춤법 검사기 HTML 파일을 열면 자동으로 연결됩니다."
+echo " 브라우저에서 http://127.0.0.1:5000 을 열어주세요."
 echo " 종료: Ctrl+C"
 echo ""
+# 서버가 뜰 시간을 주고 브라우저 열기 (백그라운드)
+(sleep 2 && open "http://127.0.0.1:5000" 2>/dev/null || xdg-open "http://127.0.0.1:5000" 2>/dev/null) &
 python3 "$(dirname "$0")/spellcheck-server.py"
