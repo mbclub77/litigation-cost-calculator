@@ -6,7 +6,7 @@
 <title>소송비용액확정신청서 및 소송비용계산서 자동화</title>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Malgun Gothic','맑은 고딕',Arial,sans-serif;font-size:14px;color:#333;background:#eef0f3;print-color-adjust:exact;-webkit-print-color-adjust:exact;}
@@ -320,8 +320,9 @@ const mkParty = () => ({
 });
 const defaultPartialInst = label => ({
   label, num:'', court:'',
-  p: mkParty(),  // 신청인
-  d: mkParty(),  // 피신청인
+  pRatioNum:'7', pRatioDen:'10',
+  p: mkParty(),
+  d: mkParty(),
 });
 /* 정규화: partial inst의 party 데이터를 getInstItems가 받을 수 있는 형태로 변환 */
 const toWinView = (pi, party) => ({
@@ -531,25 +532,38 @@ const PartialDoc = ({partialInsts, pRatioNum, pRatioDen, calcMode='both', bonSta
     const pItems = getInstItems(toWinView(pi,'p'));
     const dSrc = (respDInsts&&respDInsts[idx]) ? {...pi, d:respDInsts[idx].d} : pi;
     const dItems = getInstItems(toWinView(dSrc,'d'));
+    const iPN = (pi.pRatioNum!==undefined&&pi.pRatioNum!=='') ? pi.pRatioNum : effPN;
+    const iPD = (pi.pRatioDen!==undefined&&pi.pRatioDen!=='') ? pi.pRatioDen : effPD;
+    const iRNum = parseInt(iPN)||0;
+    const iRDen = parseInt(iPD)||10;
+    const pAmt = pItems.reduce((s,i)=>s+i.amount,0);
+    const dAmt = dItems.reduce((s,i)=>s+i.amount,0);
+    const pSp = Math.round(pAmt * rRN / rRD);
+    const dSp = Math.round(dAmt * rRN / rRD);
+    const iST = pSp + dSp;
+    const pBu = Math.round(iST * (iRDen - iRNum) / iRDen);
+    const dBu = Math.round(iST * iRNum / iRDen);
     return {
       inst:pi, dSrc,
       pItems, dItems,
-      pAmt: pItems.reduce((s,i)=>s+i.amount,0),
-      dAmt: dItems.reduce((s,i)=>s+i.amount,0),
+      pAmt, dAmt,
+      pSp, dSp, pBu, dBu, iRNum, iRDen,
+      claimP: pSp - pBu,
+      claimD: dSp - dBu,
     };
   });
 
   const pTotal = instData.reduce((s,d)=>s+d.pAmt,0);
   const dTotal = instData.reduce((s,d)=>s+d.dAmt,0);
 
-  /* ── 본안소송 소계(A) — 피신청인 간 비율·부담비율 적용 ── */
-  const pSplitA = Math.round(pTotal * rRN / rRD);
-  const dSplitA = Math.round(dTotal * rRN / rRD);
+  /* ── 본안소송 소계(A) — 심급별 부담비율 적용 후 합산 ── */
+  const pSplitA  = instData.reduce((s,d)=>s+d.pSp,0);
+  const dSplitA  = instData.reduce((s,d)=>s+d.dSp,0);
   const splitATotal = pSplitA + dSplitA;
-  const pBurdenA = Math.round(splitATotal * (rDen - rNum) / rDen);
-  const dBurdenA = Math.round(splitATotal * rNum / rDen);
-  const claimA_p = pSplitA - pBurdenA;
-  const claimA_d = dSplitA - dBurdenA;
+  const pBurdenA = instData.reduce((s,d)=>s+d.pBu,0);
+  const dBurdenA = instData.reduce((s,d)=>s+d.dBu,0);
+  const claimA_p = instData.reduce((s,d)=>s+d.claimP,0);
+  const claimA_d = instData.reduce((s,d)=>s+d.claimD,0);
 
   /* ── 신청비용 소계(B) — A와 완전 독립, 부담비율 미적용 ── */
   const pConfStampVal = respPConfEnabled!==null
@@ -1664,13 +1678,13 @@ const App = () => {
                 </div>
               </div>
               <div className="sec">
-                <div className="sec-title">⚖ 소송비용 부담 비율 (전체 적용)</div>
+                <div className="sec-title">⚖ 소송비용 부담 비율 — {partialInst.label}</div>
                 <div className="ratio-row">
                   <span>피신청인 부담:</span>
-                  <input value={pRatioNum} onChange={e=>setPRatioNum(e.target.value)}/>
+                  <input value={partialInst.pRatioNum!==undefined?partialInst.pRatioNum:pRatioNum} onChange={e=>updPartialInst({pRatioNum:e.target.value})}/>
                   <span style={{fontWeight:700}}>/</span>
-                  <input value={pRatioDen} onChange={e=>setPRatioDen(e.target.value)}/>
-                  <span className="ratio-pct">({((rNum_p/rDen_p)*100).toFixed(1)}%)</span>
+                  <input value={partialInst.pRatioDen!==undefined?partialInst.pRatioDen:pRatioDen} onChange={e=>updPartialInst({pRatioDen:e.target.value})}/>
+                  <span className="ratio-pct">({(((parseInt(partialInst.pRatioNum!==undefined?partialInst.pRatioNum:pRatioNum)||0)/(parseInt(partialInst.pRatioDen!==undefined?partialInst.pRatioDen:pRatioDen)||10))*100).toFixed(1)}%)</span>
                 </div>
               </div>
               {/* 선택된 party 항목 */}
