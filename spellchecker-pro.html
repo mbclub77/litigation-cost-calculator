@@ -123,6 +123,7 @@ body{font-family:'Malgun Gothic','맑은 고딕',sans-serif;background:var(--bg)
       <label><input type="checkbox" id="optStyle" checked> 문체(이중피동 등)</label>
       <label><input type="checkbox" id="optPunct"> 문장부호·공백</label>
     </div>
+    <div id="serverBadge" style="margin:6px 0;font-size:12px;padding:4px 10px;border-radius:6px;display:inline-block;background:var(--bg2);color:var(--sub)">⏳ 서버 확인 중…</div>
     <div class="btn-row">
       <button class="btn btn-p" onclick="runCheck()">🔍 맞춤법 검사</button>
       <button class="btn btn-o" onclick="clearInput()">🗑️ 지우기</button>
@@ -1373,9 +1374,64 @@ function runMorphCheck(text,errors){
   }
 }
 
-function runCheck(){
+// ─── 부산대 맞춤법 서버 연동 ──────────────────────────────────────────────
+const SERVER='http://127.0.0.1:5000';
+let serverOK=false;
+
+async function pingServer(){
+  try{
+    const r=await fetch(SERVER+'/health',{signal:AbortSignal.timeout(2000)});
+    serverOK=r.ok;
+  }catch(e){serverOK=false;}
+  const b=document.getElementById('serverBadge');
+  if(serverOK){
+    b.textContent='🟢 부산대 맞춤법 서버 연결됨 (고품질 검사)';
+    b.style.background='#e6f9ee';b.style.color='#1a7a3c';
+  }else{
+    b.textContent='🔴 서버 없음 — 오프라인 규칙으로만 검사 (start-server.bat 실행 시 고품질 검사)';
+    b.style.background='#fff0f0';b.style.color='#a00';
+  }
+}
+pingServer();
+setInterval(pingServer,10000);
+
+const SERVER_TYPE={spell:'spell',spacing:'spacing',style:'style',punct:'punct',grammar:'grammar'};
+
+async function serverCheck(text){
+  const r=await fetch(SERVER+'/check',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({text}),
+    signal:AbortSignal.timeout(30000)
+  });
+  if(!r.ok)throw new Error('서버 오류 '+r.status);
+  const d=await r.json();
+  if(!d.success)throw new Error(d.error||'알 수 없는 오류');
+  return (d.errors||[]).filter(e=>e.original&&e.correction&&e.original!==e.correction);
+}
+
+async function runCheck(){
   const text=getInputText().trim();
   if(!text){toast('검사할 내용을 입력하세요');return}
+
+  // 서버 모드: 부산대 API 우선 사용
+  if(serverOK){
+    document.getElementById('resultArea').innerHTML=
+      '<div class="empty"><div class="ico">⏳</div><h3>부산대 맞춤법 검사 중…</h3></div>';
+    try{
+      const errors=await serverCheck(text);
+      errors.sort((a,b)=>a.pos-b.pos||b.len-a.len);
+      const clean=[];let lastEnd=-1;
+      for(const e of errors){if(e.pos>=lastEnd){clean.push(e);lastEnd=e.pos+e.len}}
+      renderResult(text,clean);
+      return;
+    }catch(err){
+      toast('서버 오류: '+err.message+' — 오프라인으로 전환');
+      serverOK=false;pingServer();
+    }
+  }
+
+  // 오프라인 모드
   const errors=[];
 
   // 1) literal 사전
