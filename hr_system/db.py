@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import sqlite3, os
-from datetime import date, timedelta
+from datetime import date
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'hr.db')
 
@@ -13,8 +13,7 @@ def get_db():
 
 def init_db():
     conn = get_db()
-    c = conn.cursor()
-    c.executescript("""
+    conn.executescript("""
     CREATE TABLE IF NOT EXISTS companies (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
@@ -102,12 +101,29 @@ def init_db():
         created_at TEXT DEFAULT (date('now','localtime')),
         resolved_at TEXT
     );
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        role TEXT DEFAULT 'company',
+        company_id INTEGER,
+        name TEXT DEFAULT '',
+        created_at TEXT DEFAULT (date('now','localtime'))
+    );
     """)
     conn.commit()
+
+    # 최초 관리자 계정 생성 (admin / admin1234)
+    if not conn.execute("SELECT id FROM users WHERE username='admin'").fetchone():
+        from werkzeug.security import generate_password_hash
+        conn.execute(
+            "INSERT INTO users(username,password_hash,role,name) VALUES(?,?,?,?)",
+            ('admin', generate_password_hash('admin1234'), 'admin', '관리자')
+        )
+        conn.commit()
     conn.close()
 
 def calc_annual_leave(hire_date_str):
-    """입사일 기준 올해 연차 일수 계산 (근로기준법)"""
     try:
         hire = date.fromisoformat(hire_date_str)
     except:
@@ -115,8 +131,5 @@ def calc_annual_leave(hire_date_str):
     today = date.today()
     years = (today - hire).days // 365
     if years < 1:
-        months = (today - hire).days // 30
-        return min(months, 11)
-    base = 15
-    extra = (years - 1) // 2
-    return min(base + extra, 25)
+        return min((today - hire).days // 30, 11)
+    return min(15 + (years - 1) // 2, 25)

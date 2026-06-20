@@ -17,18 +17,25 @@
   </div>
   <ul class="nav flex-column mt-2">
     <li class="nav-item"><a class="nav-link {% if request.endpoint=='dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}"><i class="fa-solid fa-gauge-high"></i>대시보드</a></li>
+    {% if current_user.is_admin %}
     <li class="nav-item"><a class="nav-link {% if request.endpoint=='companies' %}active{% endif %}" href="{{ url_for('companies') }}"><i class="fa-solid fa-building"></i>회사 관리</a></li>
+    {% endif %}
     <li class="nav-item"><a class="nav-link {% if request.endpoint=='employees' %}active{% endif %}" href="{{ url_for('employees') }}"><i class="fa-solid fa-users"></i>인사정보 관리</a></li>
     <li class="nav-item"><a class="nav-link {% if request.endpoint=='attendance' %}active{% endif %}" href="{{ url_for('attendance') }}"><i class="fa-solid fa-clock"></i>출퇴근 관리</a></li>
     <li class="nav-item"><a class="nav-link {% if request.endpoint=='leave' %}active{% endif %}" href="{{ url_for('leave') }}"><i class="fa-solid fa-calendar-days"></i>연차 관리</a></li>
     <li class="nav-item"><a class="nav-link {% if request.endpoint=='salary' %}active{% endif %}" href="{{ url_for('salary') }}"><i class="fa-solid fa-won-sign"></i>보수 관리</a></li>
     <li class="nav-item"><a class="nav-link {% if request.endpoint=='consultation' %}active{% endif %}" href="{{ url_for('consultation') }}"><i class="fa-solid fa-file-contract"></i>노무자문의뢰</a></li>
+    {% if current_user.is_admin %}
+    <li class="nav-item mt-2"><hr style="border-color:#2e3d6a;margin:4px 16px"></li>
+    <li class="nav-item"><a class="nav-link {% if request.endpoint=='users' %}active{% endif %}" href="{{ url_for('users') }}"><i class="fa-solid fa-users-gear"></i>계정 관리</a></li>
+    {% endif %}
   </ul>
 </nav>
 
 <!-- 콘텐츠 -->
 <div id="content">
   <div class="topbar">
+    {% if current_user.is_admin %}
     <span class="sel-label"><i class="fa-solid fa-filter me-1"></i>회사 선택:</span>
     <div class="dropdown">
       <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
@@ -42,7 +49,36 @@
         {% endfor %}
       </ul>
     </div>
-    <span class="ms-auto text-muted small">{{ now.strftime('%Y년 %m월 %d일') if now else '' }}</span>
+    {% else %}
+    <span class="text-muted small"><i class="fa-solid fa-building me-1"></i>
+      {% if sel %}{{ sel.name }}{% else %}회사 미지정{% endif %}
+    </span>
+    {% endif %}
+
+    <div class="ms-auto d-flex align-items-center gap-3">
+      <span class="small text-muted d-none d-md-inline">{{ now.strftime('%Y년 %m월 %d일') if now else '' }}</span>
+      <div class="dropdown">
+        <button class="btn btn-sm btn-outline-secondary dropdown-toggle d-flex align-items-center gap-2" data-bs-toggle="dropdown">
+          <i class="fa-solid fa-circle-user"></i>
+          <span>{{ current_user.name }}</span>
+          {% if current_user.is_admin %}<span class="badge bg-primary" style="font-size:.65rem">관리자</span>{% endif %}
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+          <li><h6 class="dropdown-header">{{ current_user.username }}</h6></li>
+          <li><hr class="dropdown-divider my-1"></li>
+          <li>
+            <button class="dropdown-item small" data-bs-toggle="modal" data-bs-target="#myPwModal">
+              <i class="fa-solid fa-key me-2 text-muted"></i>비밀번호 변경
+            </button>
+          </li>
+          <li>
+            <a class="dropdown-item small text-danger" href="{{ url_for('logout') }}">
+              <i class="fa-solid fa-right-from-bracket me-2"></i>로그아웃
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
   </div>
 
   {% with messages = get_flashed_messages() %}
@@ -61,12 +97,36 @@
   <div class="page-body">{% block content %}{% endblock %}</div>
 </div>
 
+<!-- 내 비밀번호 변경 모달 -->
+<div class="modal fade" id="myPwModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title"><i class="fa-solid fa-key me-2"></i>비밀번호 변경</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{{ url_for('change_password') }}">
+        <div class="modal-body">
+          <div class="mb-2">
+            <input type="password" name="old_password" class="form-control" placeholder="현재 비밀번호" required>
+          </div>
+          <div>
+            <input type="password" name="new_password" class="form-control" placeholder="새 비밀번호 (4자 이상)" required minlength="4">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">취소</button>
+          <button type="submit" class="btn btn-primary btn-sm">변경</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 function clearCo(){fetch('/select_company/0').catch(()=>{});window.location='/';}
-// 플래시 메시지 3초 후 자동 닫기
 setTimeout(()=>document.querySelectorAll('.flash-msg .alert').forEach(a=>a.remove()),3000);
-// 회사 선택 select_company 라우트가 없는 /0 → 세션 초기화용
 </script>
 {% block scripts %}{% endblock %}
 </body>
