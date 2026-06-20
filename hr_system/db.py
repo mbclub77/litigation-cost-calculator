@@ -113,6 +113,13 @@ def init_db():
     """)
     conn.commit()
 
+    # Migration: photo column
+    try:
+        conn.execute("ALTER TABLE employees ADD COLUMN photo TEXT")
+        conn.commit()
+    except Exception:
+        pass
+
     # 최초 관리자 계정 생성 (admin / admin1234)
     if not conn.execute("SELECT id FROM users WHERE username='admin'").fetchone():
         from werkzeug.security import generate_password_hash

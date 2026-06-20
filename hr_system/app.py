@@ -13,6 +13,8 @@ logging.basicConfig(
 )
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
+PHOTO_DIR = os.path.join(_BASE, 'static', 'photos')
+os.makedirs(PHOTO_DIR, exist_ok=True)
 
 def _find_folder(name, marker):
     sub = os.path.join(_BASE, name)
@@ -267,6 +269,24 @@ def employee_edit(eid):
     db.commit(); db.close(); flash('수정되었습니다.')
     return redirect(url_for('employees'))
 
+@app.route('/employees/<int:eid>/photo', methods=['POST'])
+@login_required
+def employee_photo(eid):
+    f = request.files.get('photo')
+    if f and f.filename:
+        ext = os.path.splitext(f.filename)[1].lower()
+        if ext in ('.jpg', '.jpeg', '.png', '.gif', '.webp'):
+            fname = f'emp_{eid}{ext}'
+            for old in os.listdir(PHOTO_DIR):
+                if old.startswith(f'emp_{eid}.'):
+                    os.remove(os.path.join(PHOTO_DIR, old))
+            f.save(os.path.join(PHOTO_DIR, fname))
+            db = get_db()
+            db.execute("UPDATE employees SET photo=? WHERE id=?", (fname, eid))
+            db.commit(); db.close()
+            flash('사진이 등록되었습니다.')
+    return redirect(url_for('employees'))
+
 @app.route('/employees/<int:eid>/delete', methods=['POST'])
 @login_required
 def employee_delete(eid):
@@ -286,14 +306,42 @@ def attendance():
     cid = _cid_filter()
     year  = int(request.args.get('year',  date.today().year))
     month = int(request.args.get('month', date.today().month))
+    mode  = request.args.get('mode', 'month')
+
     ym = f"{year}-{month:02d}"; db = get_db()
-    q = "SELECT a.*, e.name as emp_name, e.dept, c.name as co_name FROM attendance a JOIN employees e ON a.employee_id=e.id JOIN companies c ON e.company_id=c.id WHERE a.work_date LIKE ?"
+    q = ("SELECT a.*, e.name as emp_name, e.dept, c.name as co_name "
+         "FROM attendance a JOIN employees e ON a.employee_id=e.id "
+         "JOIN companies c ON e.company_id=c.id WHERE a.work_date LIKE ?")
     params = [ym+'%']
     if cid: q += " AND e.company_id=?"; params.append(cid)
-    rows = db.execute(q + " ORDER BY a.work_date DESC, e.name", params).fetchall()
-    emps = db.execute("SELECT e.id, e.name, c.name as co_name FROM employees e JOIN companies c ON e.company_id=c.id WHERE e.status='재직'" + (" AND e.company_id=?" if cid else "") + " ORDER BY c.name, e.name", ([cid] if cid else [])).fetchall()
+    rows = db.execute(q + " ORDER BY a.work_date, e.name", params).fetchall()
+
+    emps = db.execute(
+        "SELECT e.id, e.name, c.name as co_name FROM employees e "
+        "JOIN companies c ON e.company_id=c.id WHERE e.status='재직'"
+        + (" AND e.company_id=?" if cid else "") + " ORDER BY c.name, e.name",
+        ([cid] if cid else [])).fetchall()
+
+    # Year-mode summaries
+    year_monthly, year_emps = [], []
+    if mode == 'year':
+        ybase = ("FROM attendance a JOIN employees e ON a.employee_id=e.id "
+                 "JOIN companies c ON e.company_id=c.id WHERE a.work_date LIKE ?")
+        yp = [str(year)+'%']
+        if cid: ybase += " AND e.company_id=?"; yp.append(cid)
+        year_monthly = db.execute(
+            f"SELECT strftime('%m', a.work_date) as mon, COUNT(*) as days, "
+            f"SUM(a.work_hours) as total_h, SUM(a.overtime_hours) as total_ot {ybase} "
+            f"GROUP BY mon ORDER BY mon", yp).fetchall()
+        year_emps = db.execute(
+            f"SELECT e.name, e.dept, c.name as co_name, COUNT(*) as days, "
+            f"SUM(a.work_hours) as total_h, SUM(a.overtime_hours) as total_ot {ybase} "
+            f"GROUP BY e.id ORDER BY c.name, e.name", yp).fetchall()
+
     db.close()
-    return render_template('attendance.html', rows=rows, emps=emps, year=year, month=month, companies=all_companies(), sel=selected_company())
+    return render_template('attendance.html', rows=rows, emps=emps, year=year, month=month,
+        mode=mode, year_monthly=year_monthly, year_emps=year_emps,
+        companies=all_companies(), sel=selected_company())
 
 @app.route('/attendance/add', methods=['POST'])
 @login_required
@@ -320,10 +368,39 @@ def attendance_delete(aid):
 @login_required
 def leave():
     cid = _cid_filter(); year = int(request.args.get('year', date.today().year)); db = get_db()
-    emps = db.execute("SELECT e.id,e.name,e.dept,e.hire_date,c.name as co_name,COALESCE(lb.total_days,0) as total_days,COALESCE(lb.used_days,0) as used_days FROM employees e JOIN companies c ON e.company_id=c.id LEFT JOIN leave_balance lb ON lb.employee_id=e.id AND lb.year=? WHERE e.status='재직'" + (" AND e.company_id=?" if cid else "") + " ORDER BY c.name, e.name", ([year, cid] if cid else [year])).fetchall()
-    reqs = db.execute("SELECT lr.*, e.name as emp_name, c.name as co_name FROM leave_requests lr JOIN employees e ON lr.employee_id=e.id JOIN companies c ON e.company_id=c.id WHERE lr.start_date LIKE ?" + (" AND e.company_id=?" if cid else "") + " ORDER BY lr.created_at DESC", ([str(year)+'%', cid] if cid else [str(year)+'%'])).fetchall()
+    emps = db.execute(
+        "SELECT e.id,e.name,e.dept,e.hire_date,c.name as co_name,"
+        "COALESCE(lb.total_days,0) as total_days,COALESCE(lb.used_days,0) as used_days "
+        "FROM employees e JOIN companies c ON e.company_id=c.id "
+        "LEFT JOIN leave_balance lb ON lb.employee_id=e.id AND lb.year=? "
+        "WHERE e.status='재직'" + (" AND e.company_id=?" if cid else "") + " ORDER BY c.name, e.name",
+        ([year, cid] if cid else [year])).fetchall()
+    reqs = db.execute(
+        "SELECT lr.*, e.name as emp_name, c.name as co_name FROM leave_requests lr "
+        "JOIN employees e ON lr.employee_id=e.id JOIN companies c ON e.company_id=c.id "
+        "WHERE lr.start_date LIKE ?" + (" AND e.company_id=?" if cid else "") + " ORDER BY lr.created_at DESC",
+        ([str(year)+'%', cid] if cid else [str(year)+'%'])).fetchall()
     db.close()
-    return render_template('leave.html', emps=emps, reqs=reqs, year=year, companies=all_companies(), sel=selected_company(), calc_annual_leave=calc_annual_leave)
+    return render_template('leave.html', emps=emps, reqs=reqs, year=year,
+        companies=all_companies(), sel=selected_company(), calc_annual_leave=calc_annual_leave)
+
+@app.route('/leave/auto_assign', methods=['POST'])
+@login_required
+def leave_auto_assign():
+    year = int(request.form.get('year', date.today().year))
+    cid = _cid_filter(); db = get_db()
+    emps = db.execute(
+        "SELECT id, hire_date FROM employees WHERE status='재직'"
+        + (" AND company_id=?" if cid else ""), ([cid] if cid else [])).fetchall()
+    for e in emps:
+        days = calc_annual_leave(e['hire_date'])
+        db.execute(
+            "INSERT INTO leave_balance(employee_id,year,total_days,used_days) VALUES(?,?,?,0) "
+            "ON CONFLICT(employee_id,year) DO UPDATE SET total_days=excluded.total_days",
+            (e['id'], year, days))
+    db.commit(); db.close()
+    flash(f'{year}년 법정 연차가 재직 직원에게 자동 부여되었습니다.')
+    return redirect(url_for('leave', year=year))
 
 @app.route('/leave/balance/set', methods=['POST'])
 @login_required
@@ -364,11 +441,38 @@ def leave_reject(rid):
 @app.route('/salary')
 @login_required
 def salary():
-    cid = _cid_filter(); year = int(request.args.get('year', date.today().year)); month = int(request.args.get('month', date.today().month)); db = get_db()
-    rows = db.execute("SELECT s.*, e.name as emp_name, e.dept, c.name as co_name FROM salary s JOIN employees e ON s.employee_id=e.id JOIN companies c ON e.company_id=c.id WHERE s.year=? AND s.month=?" + (" AND e.company_id=?" if cid else "") + " ORDER BY c.name, e.name", ([year,month,cid] if cid else [year,month])).fetchall()
-    emps = db.execute("SELECT e.id,e.name,e.base_salary,c.name as co_name FROM employees e JOIN companies c ON e.company_id=c.id WHERE e.status='재직'" + (" AND e.company_id=?" if cid else "") + " ORDER BY c.name, e.name", ([cid] if cid else [])).fetchall()
+    cid = _cid_filter()
+    year  = int(request.args.get('year',  date.today().year))
+    month = int(request.args.get('month', date.today().month))
+    view  = request.args.get('view', 'month')
+    db = get_db()
+    rows = db.execute(
+        "SELECT s.*, e.name as emp_name, e.dept, e.position, e.emp_no, c.name as co_name "
+        "FROM salary s JOIN employees e ON s.employee_id=e.id "
+        "JOIN companies c ON e.company_id=c.id "
+        "WHERE s.year=? AND s.month=?" + (" AND e.company_id=?" if cid else "") + " ORDER BY c.name, e.name",
+        ([year,month,cid] if cid else [year,month])).fetchall()
+    emps = db.execute(
+        "SELECT e.id,e.name,e.base_salary,c.name as co_name FROM employees e "
+        "JOIN companies c ON e.company_id=c.id WHERE e.status='재직'"
+        + (" AND e.company_id=?" if cid else "") + " ORDER BY c.name, e.name",
+        ([cid] if cid else [])).fetchall()
+    annual_rows = []
+    if view == 'annual':
+        annual_rows = db.execute(
+            "SELECT e.id, e.name, e.dept, c.name as co_name, "
+            "SUM(s.base+s.overtime_pay+s.bonus+s.allowance) as gross, "
+            "SUM(s.income_tax+s.health_ins+s.employ_ins+s.pension) as deductions, "
+            "SUM(s.net_pay) as net_total, COUNT(s.id) as months "
+            "FROM salary s JOIN employees e ON s.employee_id=e.id "
+            "JOIN companies c ON e.company_id=c.id WHERE s.year=?"
+            + (" AND e.company_id=?" if cid else "") +
+            " GROUP BY e.id ORDER BY c.name, e.name",
+            ([year, cid] if cid else [year])).fetchall()
     db.close()
-    return render_template('salary.html', rows=rows, emps=emps, year=year, month=month, total=sum(r['net_pay'] for r in rows), companies=all_companies(), sel=selected_company())
+    return render_template('salary.html', rows=rows, emps=emps, year=year, month=month,
+        total=sum(r['net_pay'] for r in rows), view=view, annual_rows=annual_rows,
+        companies=all_companies(), sel=selected_company())
 
 @app.route('/salary/add', methods=['POST'])
 @login_required
@@ -390,7 +494,13 @@ def salary_delete(sid):
 @app.route('/salary/<int:sid>/json')
 @login_required
 def salary_json(sid):
-    db = get_db(); row = db.execute("SELECT * FROM salary WHERE id=?", (sid,)).fetchone(); db.close()
+    db = get_db()
+    row = db.execute(
+        "SELECT s.*, e.name as emp_name, e.dept, e.position, e.emp_no, "
+        "c.name as co_name, c.biz_no, c.address, c.phone as co_phone "
+        "FROM salary s JOIN employees e ON s.employee_id=e.id "
+        "JOIN companies c ON e.company_id=c.id WHERE s.id=?", (sid,)).fetchone()
+    db.close()
     return jsonify(dict(row)) if row else ('', 404)
 
 # ── 노무자문 ──────────────────────────────────────────────────────────────────

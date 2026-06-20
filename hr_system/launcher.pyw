@@ -41,13 +41,14 @@ flask_error = []
 
 def run_flask():
     try:
-        # Flask 설치 확인 및 자동 설치
+        # 필수 패키지 설치 확인
         try:
-            import flask
+            import flask, flask_login
+            from werkzeug.security import generate_password_hash
         except ImportError:
-            root.after(0, set_status, 'Flask 설치 중… (최초 1회)', '잠시 기다려 주세요.')
+            root.after(0, set_status, '패키지 설치 중… (최초 1회)', '잠시 기다려 주세요.')
             subprocess.check_call(
-                [sys.executable, '-m', 'pip', 'install', 'flask', '-q'],
+                [sys.executable, '-m', 'pip', 'install', 'flask', 'flask-login', 'werkzeug', '-q'],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
             )
 

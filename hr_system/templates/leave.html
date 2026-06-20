@@ -1,35 +1,90 @@
 {% extends 'base.html' %}
 {% block title %}연차 관리{% endblock %}
 {% block content %}
-<div class="d-flex align-items-center mb-3 gap-2">
+<div class="d-flex align-items-center mb-3 gap-2 flex-wrap">
   <h5 class="fw-bold mb-0"><i class="fa-solid fa-calendar-days me-2 text-primary"></i>연차 관리</h5>
-  <form class="d-flex gap-2 ms-auto">
+  <form class="d-flex gap-2 ms-auto flex-wrap align-items-center">
     <select name="year" class="form-select form-select-sm" style="width:90px" onchange="this.form.submit()">
       {% for y in range(2020,2030) %}<option {% if y==year %}selected{% endif %}>{{ y }}</option>{% endfor %}
     </select>
-    <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#reqModal"><i class="fa-solid fa-plus me-1"></i>연차 신청</button>
+    <button class="btn btn-outline-success btn-sm" type="button"
+      onclick="if(confirm('{{ year }}년 법정 연차를 재직 직원 전체에게 자동 부여합니까?')) autoAssign()">
+      <i class="fa-solid fa-wand-magic-sparkles me-1"></i>법정연차 자동부여
+    </button>
+    <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#reqModal">
+      <i class="fa-solid fa-plus me-1"></i>연차 신청
+    </button>
   </form>
+</div>
+
+<!-- 법정연차 자동부여 폼 (숨김) -->
+<form id="autoAssignForm" method="post" action="{{ url_for('leave_auto_assign') }}" style="display:none">
+  <input type="hidden" name="year" value="{{ year }}">
+</form>
+
+<!-- 연차 현황 안내 -->
+<div class="alert alert-light border mb-3 py-2">
+  <i class="fa-solid fa-circle-info me-2 text-primary"></i>
+  <strong>근로기준법 제60조</strong>
+  1년 미만: 개근 1개월당 1일 (최대 11일) /
+  1년 이상: 15일 + 매 2년마다 1일 추가 (최대 25일)
 </div>
 
 <!-- 연차 현황 테이블 -->
 <div class="card stat-card mb-4">
-  <div class="card-header bg-white fw-semibold py-3">{{ year }}년 연차 현황</div>
+  <div class="card-header bg-white fw-semibold py-3 d-flex align-items-center">
+    <span>{{ year }}년 연차 현황</span>
+    <span class="ms-auto text-muted small">총 {{ emps|length }}명</span>
+  </div>
   <div class="card-body p-0">
     <table class="table mb-0">
-      <thead><tr><th>회사</th><th>성명</th><th>부서</th><th>입사일</th><th class="text-center">법정연차</th><th class="text-center">부여일수</th><th class="text-center">사용일수</th><th class="text-center">잔여일수</th><th></th></tr></thead>
+      <thead>
+        <tr>
+          <th>회사</th><th>성명</th><th>부서</th><th>입사일</th>
+          <th class="text-center">법정연차</th>
+          <th class="text-center">부여일수</th>
+          <th class="text-center">사용일수</th>
+          <th class="text-center" style="min-width:160px">잔여 / 현황</th>
+          <th></th>
+        </tr>
+      </thead>
       <tbody>
       {% for e in emps %}
+      {% set statutory = calc_annual_leave(e.hire_date) if e.hire_date else 15 %}
+      {% set remain = e.total_days - e.used_days %}
+      {% set pct = ((e.used_days / e.total_days * 100) if e.total_days > 0 else 0)|int %}
       <tr>
         <td class="text-muted small">{{ e.co_name }}</td>
         <td class="fw-semibold">{{ e.name }}</td>
         <td>{{ e.dept or '-' }}</td>
-        <td class="text-muted">{{ e.hire_date or '-' }}</td>
-        <td class="text-center text-muted">{{ calc_annual_leave(e.hire_date) if e.hire_date else '-' }}일</td>
-        <td class="text-center fw-semibold text-primary">{{ e.total_days }}일</td>
-        <td class="text-center text-danger">{{ e.used_days }}일</td>
-        <td class="text-center fw-bold {% if e.total_days - e.used_days < 3 %}text-danger{% else %}text-success{% endif %}">{{ '%.1f'|format(e.total_days - e.used_days) }}일</td>
+        <td class="text-muted small">{{ e.hire_date or '-' }}</td>
+        <td class="text-center">
+          <span class="badge bg-secondary">{{ statutory }}일</span>
+        </td>
+        <td class="text-center fw-semibold text-primary">{{ '%.1f'|format(e.total_days) }}일</td>
+        <td class="text-center text-danger">{{ '%.1f'|format(e.used_days) }}일</td>
         <td>
-          <button class="btn btn-outline-primary btn-sm" onclick="setBalance({{ e.id }}, '{{ e.name }}', {{ e.total_days }})">연차설정</button>
+          <div class="d-flex align-items-center gap-2">
+            <span class="fw-bold {% if remain < 0 %}text-danger{% elif remain < 3 %}text-warning{% else %}text-success{% endif %}"
+              style="min-width:40px">
+              {{ '%.1f'|format(remain) }}일
+            </span>
+            {% if e.total_days > 0 %}
+            <div class="progress flex-grow-1" style="height:8px">
+              <div class="progress-bar {% if pct >= 100 %}bg-danger{% elif pct >= 70 %}bg-warning{% else %}bg-success{% endif %}"
+                   style="width:{{ [pct, 100]|min }}%"></div>
+            </div>
+            <span class="text-muted" style="font-size:.75rem;min-width:30px">{{ pct }}%</span>
+            {% else %}
+            <span class="text-muted small">미부여</span>
+            {% endif %}
+          </div>
+        </td>
+        <td>
+          <button class="btn btn-outline-primary btn-sm"
+            onclick="setBalance({{ e.id }}, '{{ e.name }}', {{ e.total_days }}, {{ statutory }})">
+            <i class="fa-solid fa-pen-to-square"></i>
+          </button>
         </td>
       </tr>
       {% else %}
@@ -45,7 +100,12 @@
   <div class="card-header bg-white fw-semibold py-3">{{ year }}년 연차 신청 내역</div>
   <div class="card-body p-0">
     <table class="table mb-0">
-      <thead><tr><th>회사</th><th>성명</th><th>유형</th><th>시작일</th><th>종료일</th><th class="text-center">일수</th><th>사유</th><th>상태</th><th>신청일</th><th></th></tr></thead>
+      <thead>
+        <tr>
+          <th>회사</th><th>성명</th><th>유형</th><th>시작일</th><th>종료일</th>
+          <th class="text-center">일수</th><th>사유</th><th>상태</th><th>신청일</th><th></th>
+        </tr>
+      </thead>
       <tbody>
       {% for r in reqs %}
       <tr>
@@ -83,13 +143,29 @@
     <form class="modal-content" method="post" action="{{ url_for('leave_balance_set') }}">
       <input type="hidden" name="year" value="{{ year }}">
       <input type="hidden" name="employee_id" id="b_employee_id">
-      <div class="modal-header"><h5 class="modal-title">연차 부여 — <span id="b_emp_name"></span></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-      <div class="modal-body">
-        <label class="form-label">부여 연차 일수</label>
-        <input id="b_total" name="total_days" type="number" step="0.5" class="form-control" required>
-        <small class="text-muted">법정 연차일수를 참고하여 입력하세요.</small>
+      <div class="modal-header">
+        <h5 class="modal-title">연차 부여 — <span id="b_emp_name"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button><button class="btn btn-primary">저장</button></div>
+      <div class="modal-body">
+        <div class="alert alert-info py-2 small mb-3">
+          <i class="fa-solid fa-circle-info me-1"></i>
+          법정 연차: <strong id="b_statutory"></strong>일
+          (근로기준법 제60조 기준 자동 계산)
+        </div>
+        <label class="form-label fw-semibold">부여 연차 일수</label>
+        <div class="input-group">
+          <input id="b_total" name="total_days" type="number" step="0.5" class="form-control" required>
+          <button type="button" class="btn btn-outline-secondary" onclick="useStatutory()">
+            법정일수 적용
+          </button>
+        </div>
+        <div class="form-text">법정 연차를 기준으로 회사 사정에 맞게 조정할 수 있습니다.</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+        <button class="btn btn-primary">저장</button>
+      </div>
     </form>
   </div>
 </div>
@@ -98,7 +174,10 @@
 <div class="modal fade" id="reqModal" tabindex="-1">
   <div class="modal-dialog">
     <form class="modal-content" method="post" action="{{ url_for('leave_request_add') }}">
-      <div class="modal-header"><h5 class="modal-title">연차 신청</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-header">
+        <h5 class="modal-title">연차 신청</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
       <div class="modal-body">
         <div class="row g-3">
           <div class="col-12">
@@ -114,24 +193,39 @@
               <option>연차</option><option>반차</option><option>병가</option><option>경조사</option><option>기타</option>
             </select>
           </div>
-          <div class="col-6"><label class="form-label">일수</label><input name="days" type="number" step="0.5" value="1" class="form-control" required></div>
+          <div class="col-6">
+            <label class="form-label">일수</label>
+            <input name="days" type="number" step="0.5" value="1" class="form-control" required>
+          </div>
           <div class="col-6"><label class="form-label">시작일 *</label><input name="start_date" type="date" class="form-control" required></div>
           <div class="col-6"><label class="form-label">종료일 *</label><input name="end_date" type="date" class="form-control" required></div>
           <div class="col-12"><label class="form-label">사유</label><input name="reason" class="form-control"></div>
         </div>
       </div>
-      <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button><button class="btn btn-primary">신청</button></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+        <button class="btn btn-primary">신청</button>
+      </div>
     </form>
   </div>
 </div>
 {% endblock %}
 {% block scripts %}
 <script>
-function setBalance(id, name, total){
+let _statutory = 0;
+function setBalance(id, name, total, statutory) {
+  _statutory = statutory;
   document.getElementById('b_employee_id').value = id;
   document.getElementById('b_emp_name').textContent = name;
-  document.getElementById('b_total').value = total;
+  document.getElementById('b_total').value = total || statutory;
+  document.getElementById('b_statutory').textContent = statutory;
   new bootstrap.Modal(document.getElementById('balanceModal')).show();
+}
+function useStatutory() {
+  document.getElementById('b_total').value = _statutory;
+}
+function autoAssign() {
+  document.getElementById('autoAssignForm').submit();
 }
 </script>
 {% endblock %}
