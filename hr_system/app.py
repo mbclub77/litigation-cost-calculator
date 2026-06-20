@@ -4,7 +4,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, j
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from db import get_db, init_db, calc_annual_leave, calc_work_hours
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import os, traceback, logging, json
 import calendar as cal_module
 
@@ -643,6 +643,67 @@ def attendance_delete(aid):
     db.close()
     return redirect(url_for('attendance'))
 
+@app.route('/attendance/bulk_add', methods=['POST'])
+@login_required
+def attendance_bulk_add():
+    """평일/주말 패턴을 기반으로 기간 내 출퇴근을 일괄 등록한다."""
+    f = request.form
+    if current_user.is_employee:
+        emp_id = current_user.employee_id
+    else:
+        emp_id = f.get('employee_id')
+    if not emp_id:
+        flash('직원을 선택해주세요.')
+        return redirect(url_for('attendance'))
+
+    start_str = f.get('bulk_start_date', '')
+    end_str   = f.get('bulk_end_date', '')
+    ci        = f.get('bulk_check_in',  '09:00')
+    co_t      = f.get('bulk_check_out', '18:00')
+    weekdays  = [int(w) for w in f.getlist('bulk_weekdays')]  # 0=월 … 6=일
+
+    if not start_str or not end_str:
+        flash('날짜 범위를 입력해주세요.')
+        return redirect(url_for('attendance'))
+
+    try:
+        start_d = date.fromisoformat(start_str)
+        end_d   = date.fromisoformat(end_str)
+    except Exception:
+        flash('날짜 형식이 올바르지 않습니다.')
+        return redirect(url_for('attendance'))
+
+    if end_d < start_d:
+        flash('종료일이 시작일보다 앞입니다.')
+        return redirect(url_for('attendance'))
+    if (end_d - start_d).days > 366:
+        flash('최대 1년(366일) 범위까지 등록 가능합니다.')
+        return redirect(url_for('attendance'))
+
+    wh = ot = 0.0
+    if ci and co_t:
+        t1 = datetime.strptime(ci, '%H:%M')
+        t2 = datetime.strptime(co_t, '%H:%M')
+        total = max(0, (t2 - t1).seconds / 3600)
+        wh, ot, _ = calc_work_hours(total)
+
+    db = get_db()
+    count = 0
+    cur = start_d
+    while cur <= end_d:
+        if cur.weekday() in weekdays:
+            db.execute(
+                "INSERT OR IGNORE INTO attendance"
+                "(employee_id,work_date,check_in,check_out,work_hours,overtime_hours) "
+                "VALUES(?,?,?,?,?,?)",
+                (emp_id, cur.isoformat(), ci, co_t, round(wh, 2), round(ot, 2)))
+            count += 1
+        cur += timedelta(days=1)
+    db.commit()
+    db.close()
+    flash(f'총 {count}일 출퇴근 기록이 일괄 등록되었습니다.')
+    return redirect(url_for('attendance', year=start_d.year, month=start_d.month))
+
 # ── 직원 출퇴근 체크인/아웃 ────────────────────────────────────────────────────
 @app.route('/checkin', methods=['POST'])
 @login_required
@@ -777,7 +838,7 @@ def leave_request_add():
          float(f.get('days', 1)), f.get('reason')))
     db.commit()
     db.close()
-    flash('연차 신청이 접수되었습니다.')
+    flash('휴가 신청이 접수되었습니다.')
     return redirect(url_for('leave'))
 
 @app.route('/leave/request/<int:rid>/approve', methods=['POST'])

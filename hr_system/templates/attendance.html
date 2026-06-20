@@ -28,6 +28,9 @@
     {% endif %}
     <input type="hidden" name="mode" value="{{ mode }}">
     {% if not current_user.is_employee %}
+    <button class="btn btn-outline-success btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#bulkModal">
+      <i class="fa-solid fa-list-check me-1"></i>일괄 등록
+    </button>
     <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#addModal">
       <i class="fa-solid fa-plus me-1"></i>기록 추가
     </button>
@@ -261,6 +264,85 @@
     </form>
   </div>
 </div>
+
+<!-- 출퇴근 일괄 등록 모달 -->
+<div class="modal fade" id="bulkModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <form class="modal-content" method="post" action="{{ url_for('attendance_bulk_add') }}">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fa-solid fa-list-check me-2 text-success"></i>출퇴근 일괄 등록</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-info py-2 small mb-3">
+          <i class="fa-solid fa-circle-info me-1"></i>
+          선택한 기간에서 지정한 요일의 출퇴근을 한번에 등록합니다. 이미 기록된 날짜는 건너뜁니다.
+        </div>
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label fw-semibold">직원 <span class="text-danger">*</span></label>
+            <select name="employee_id" class="form-select" required>
+              <option value="">선택하세요</option>
+              {% for e in emps %}
+              <option value="{{ e.id }}">{{ e.co_name }} — {{ e.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">시작일 <span class="text-danger">*</span></label>
+            <input name="bulk_start_date" type="date" class="form-control"
+                   value="{{ '%d-%02d-01'|format(year, month) }}" required
+                   onchange="updateBulkPreview()">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">종료일 <span class="text-danger">*</span></label>
+            <input name="bulk_end_date" type="date" class="form-control"
+                   id="bulkEndDate" required onchange="updateBulkPreview()">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">출근 시각</label>
+            <input name="bulk_check_in" type="time" class="form-control" value="09:00"
+                   onchange="updateBulkPreview()">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">퇴근 시각</label>
+            <input name="bulk_check_out" type="time" class="form-control" value="18:00"
+                   onchange="updateBulkPreview()">
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold">근무 요일</label>
+            <div class="d-flex gap-2 flex-wrap">
+              {% set day_labels = [('0','월','text-primary'),('1','화','text-primary'),('2','수','text-primary'),
+                                   ('3','목','text-primary'),('4','금','text-primary'),
+                                   ('5','토','text-info'),('6','일','text-danger')] %}
+              {% for val, label, color in day_labels %}
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="checkbox" name="bulk_weekdays"
+                       value="{{ val }}" id="wd{{ val }}"
+                       {% if val in ['0','1','2','3','4'] %}checked{% endif %}
+                       onchange="updateBulkPreview()">
+                <label class="form-check-label fw-semibold {{ color }}" for="wd{{ val }}">{{ label }}</label>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="col-12">
+            <div class="alert alert-light border py-2 small" id="bulkPreview">
+              날짜 범위를 선택하면 등록 예정 일수가 표시됩니다.
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+        <button class="btn btn-success" type="submit"
+                onclick="return confirm('선택한 기간에 출퇴근을 일괄 등록합니까?\n이미 등록된 날짜는 건너뜁니다.')">
+          <i class="fa-solid fa-list-check me-1"></i>일괄 등록
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
 {% endif %}
 {% endblock %}
 {% block scripts %}
@@ -289,5 +371,50 @@ function previewHours() {
     `<span class="text-muted">(${ci} ~ ${co})</span>`;
 }
 previewHours();
+
+// 일괄 등록 — 종료일 기본값: 해당 월 말일
+(function() {
+  const endEl = document.getElementById('bulkEndDate');
+  if (!endEl) return;
+  const startEl = document.querySelector('[name=bulk_start_date]');
+  const sd = new Date(startEl ? startEl.value : '');
+  if (!isNaN(sd)) {
+    const lastDay = new Date(sd.getFullYear(), sd.getMonth() + 1, 0);
+    endEl.value = lastDay.toISOString().slice(0, 10);
+  }
+  updateBulkPreview();
+})();
+
+function updateBulkPreview() {
+  const sd = document.querySelector('[name=bulk_start_date]')?.value;
+  const ed = document.querySelector('[name=bulk_end_date]')?.value;
+  const ci = document.querySelector('[name=bulk_check_in]')?.value || '09:00';
+  const co = document.querySelector('[name=bulk_check_out]')?.value || '18:00';
+  const checked = [...document.querySelectorAll('[name=bulk_weekdays]:checked')].map(e => parseInt(e.value));
+  const el = document.getElementById('bulkPreview');
+  if (!el || !sd || !ed) return;
+  const start = new Date(sd), end = new Date(ed);
+  if (end < start) { el.innerHTML = '<span class="text-danger">종료일이 시작일보다 앞입니다.</span>'; return; }
+
+  let count = 0;
+  const cur = new Date(start);
+  while (cur <= end) {
+    if (checked.includes(cur.getDay() === 0 ? 6 : cur.getDay() - 1)) count++;
+    cur.setDate(cur.getDate() + 1);
+  }
+
+  const [h1,m1] = ci.split(':').map(Number);
+  const [h2,m2] = co.split(':').map(Number);
+  const total = (h2*60+m2 - h1*60-m1) / 60;
+  const rest = calcRest(total);
+  const wh = Math.min(Math.max(0, total - rest), 8).toFixed(1);
+  const ot = Math.max(0, Math.max(0, total - rest) - 8).toFixed(1);
+
+  const dayNames = ['월','화','수','목','금','토','일'];
+  const selDays = checked.map(d => dayNames[d]).join(', ');
+  el.innerHTML =
+    `<strong class="text-success">${count}일</strong> 등록 예정 ` +
+    `<span class="text-muted">(요일: ${selDays || '없음'} / ${ci}~${co} / 근무 ${wh}h 연장 ${ot}h)</span>`;
+}
 </script>
 {% endblock %}

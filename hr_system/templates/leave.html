@@ -1,9 +1,9 @@
 {% extends 'base.html' %}
-{% block title %}연차 관리{% endblock %}
+{% block title %}휴가 관리{% endblock %}
 {% block content %}
 <div class="d-flex align-items-center mb-3 gap-2 flex-wrap">
   <h5 class="fw-bold mb-0">
-    <i class="fa-solid fa-calendar-days me-2" style="color:var(--gold)"></i>연차 관리
+    <i class="fa-solid fa-calendar-days me-2" style="color:var(--gold)"></i>휴가 관리
   </h5>
   <form class="d-flex gap-2 ms-auto flex-wrap align-items-center">
     <select name="year" class="form-select form-select-sm" style="width:90px" onchange="this.form.submit()">
@@ -17,7 +17,7 @@
     {% endif %}
     <button class="btn btn-outline-primary btn-sm" type="button"
             data-bs-toggle="modal" data-bs-target="#reqModal">
-      <i class="fa-solid fa-plus me-1"></i>연차 신청
+      <i class="fa-solid fa-plus me-1"></i>휴가 신청
     </button>
   </form>
 </div>
@@ -38,7 +38,7 @@
 {% if not current_user.is_employee %}
 <div class="stat-card mb-4">
   <div class="card-header py-3 d-flex align-items-center">
-    <span>{{ year }}년 연차 현황</span>
+    <span>{{ year }}년 휴가 현황</span>
     <span class="ms-auto text-muted small">총 {{ emps|length }}명</span>
   </div>
   <div class="card-body p-0">
@@ -135,7 +135,7 @@
 
 <!-- 연차 신청 목록 -->
 <div class="stat-card">
-  <div class="card-header py-3">{{ year }}년 연차 신청 내역</div>
+  <div class="card-header py-3">{{ year }}년 휴가 신청 내역</div>
   <div class="card-body p-0">
     <table class="table mb-0">
       <thead>
@@ -192,7 +192,7 @@
       <input type="hidden" name="year" value="{{ year }}">
       <input type="hidden" name="employee_id" id="b_employee_id">
       <div class="modal-header">
-        <h5 class="modal-title">연차 부여 — <span id="b_emp_name"></span></h5>
+        <h5 class="modal-title">연차 부여(휴가일수 설정) — <span id="b_emp_name"></span></h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
@@ -215,12 +215,12 @@
 </div>
 {% endif %}
 
-<!-- 연차 신청 모달 -->
+<!-- 휴가 신청 모달 -->
 <div class="modal fade" id="reqModal" tabindex="-1">
   <div class="modal-dialog">
     <form class="modal-content" method="post" action="{{ url_for('leave_request_add') }}">
       <div class="modal-header">
-        <h5 class="modal-title">연차 신청</h5>
+        <h5 class="modal-title"><i class="fa-solid fa-umbrella-beach me-2"></i>휴가 신청</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
@@ -234,15 +234,39 @@
             </select>
           </div>
           {% endif %}
-          <div class="col-6">
-            <label class="form-label">휴가 유형</label>
-            <select name="leave_type" class="form-select">
-              <option>연차</option><option>반차</option><option>병가</option><option>경조사</option><option>기타</option>
+          <div class="col-7">
+            <label class="form-label">휴가 유형 <span class="text-danger">*</span></label>
+            <select name="leave_type" class="form-select" id="leaveTypeSelect" onchange="updateLeaveDays(this)">
+              <optgroup label="연차휴가">
+                <option value="연차">연차 (유급)</option>
+                <option value="반차(오전)">반차 — 오전 (0.5일)</option>
+                <option value="반차(오후)">반차 — 오후 (0.5일)</option>
+              </optgroup>
+              <optgroup label="병가">
+                <option value="병가">병가 (무급)</option>
+                <option value="유급병가">유급병가</option>
+              </optgroup>
+              <optgroup label="보상·대체휴가">
+                <option value="보상휴가">보상휴가 (연장근로 대체)</option>
+                <option value="대체휴무">대체휴무</option>
+              </optgroup>
+              <optgroup label="경조사·특별휴가">
+                <option value="경조사(결혼)">경조사 — 결혼</option>
+                <option value="경조사(부모상)">경조사 — 부모상</option>
+                <option value="경조사(배우자출산)">경조사 — 배우자 출산</option>
+                <option value="경조사(기타)">경조사 — 기타</option>
+                <option value="특별휴가">특별휴가</option>
+              </optgroup>
+              <optgroup label="법정휴가">
+                <option value="출산휴가">출산휴가 (근기법 §74)</option>
+                <option value="육아휴직">육아휴직 (남녀고용평등법)</option>
+                <option value="공가">공가 (병역·공무 등)</option>
+              </optgroup>
             </select>
           </div>
-          <div class="col-6">
+          <div class="col-5">
             <label class="form-label">일수</label>
-            <input name="days" type="number" step="0.5" value="1" class="form-control" required>
+            <input name="days" id="leaveDays" type="number" step="0.5" value="1" class="form-control" required>
           </div>
           <div class="col-6">
             <label class="form-label">시작일 <span class="text-danger">*</span></label>
@@ -254,13 +278,13 @@
           </div>
           <div class="col-12">
             <label class="form-label">사유</label>
-            <input name="reason" class="form-control">
+            <input name="reason" class="form-control" placeholder="선택 입력">
           </div>
         </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
-        <button class="btn btn-primary">신청</button>
+        <button class="btn btn-primary"><i class="fa-solid fa-paper-plane me-1"></i>신청</button>
       </div>
     </form>
   </div>
@@ -279,5 +303,12 @@ function setBalance(id, name, total, statutory) {
 }
 function useStatutory() { document.getElementById('b_total').value = _statutory; }
 function autoAssign() { document.getElementById('autoAssignForm').submit(); }
+
+function updateLeaveDays(sel) {
+  const halfDay = ['반차(오전)', '반차(오후)'];
+  const el = document.getElementById('leaveDays');
+  if (el && halfDay.includes(sel.value)) el.value = 0.5;
+  else if (el && el.value == 0.5) el.value = 1;
+}
 </script>
 {% endblock %}
