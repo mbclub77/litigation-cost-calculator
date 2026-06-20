@@ -11,7 +11,10 @@ logging.basicConfig(
     format='%(asctime)s %(levelname)s %(message)s'
 )
 
-app = Flask(__name__)
+_BASE = os.path.dirname(os.path.abspath(__file__))
+app = Flask(__name__,
+            template_folder=os.path.join(_BASE, 'templates'),
+            static_folder=os.path.join(_BASE, 'static'))
 app.secret_key = 'hr-system-secret-2024'
 
 @app.errorhandler(Exception)
