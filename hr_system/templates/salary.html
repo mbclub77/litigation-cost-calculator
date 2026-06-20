@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% block title %}보수 관리{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center mb-4 gap-2">
+  <h5 class="fw-bold mb-0"><i class="fa-solid fa-won-sign me-2 text-primary"></i>보수 관리</h5>
+  <form class="d-flex gap-2 ms-auto align-items-center">
+    <select name="year" class="form-select form-select-sm" style="width:90px" onchange="this.form.submit()">
+      {% for y in range(2020,2030) %}<option {% if y==year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+    </select>
+    <select name="month" class="form-select form-select-sm" style="width:70px" onchange="this.form.submit()">
+      {% for m in range(1,13) %}<option value="{{ m }}" {% if m==month %}selected{% endif %}>{{ m }}월</option>{% endfor %}
+    </select>
+    <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#addModal"><i class="fa-solid fa-plus me-1"></i>급여 등록</button>
+  </form>
+</div>
+
+{% if total %}
+<div class="alert alert-info py-2 mb-3"><i class="fa-solid fa-calculator me-2"></i>{{ year }}년 {{ month }}월 지급 총액: <strong>{{ '{:,}'.format(total) }}원</strong></div>
+{% endif %}
+
+<div class="card stat-card">
+  <div class="card-body p-0">
+    <table class="table mb-0">
+      <thead>
+        <tr>
+          <th>회사</th><th>성명</th><th>부서</th>
+          <th class="text-end">기본급</th><th class="text-end">연장수당</th><th class="text-end">상여금</th><th class="text-end">제수당</th>
+          <th class="text-end text-danger">소득세</th><th class="text-end text-danger">건강보험</th><th class="text-end text-danger">고용보험</th><th class="text-end text-danger">국민연금</th>
+          <th class="text-end text-success fw-bold">실수령액</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for r in rows %}
+      <tr>
+        <td class="text-muted small">{{ r.co_name }}</td>
+        <td class="fw-semibold">{{ r.emp_name }}</td>
+        <td>{{ r.dept or '-' }}</td>
+        <td class="text-end">{{ '{:,}'.format(r.base) }}</td>
+        <td class="text-end">{{ '{:,}'.format(r.overtime_pay) }}</td>
+        <td class="text-end">{{ '{:,}'.format(r.bonus) }}</td>
+        <td class="text-end">{{ '{:,}'.format(r.allowance) }}</td>
+        <td class="text-end text-danger">{{ '{:,}'.format(r.income_tax) }}</td>
+        <td class="text-end text-danger">{{ '{:,}'.format(r.health_ins) }}</td>
+        <td class="text-end text-danger">{{ '{:,}'.format(r.employ_ins) }}</td>
+        <td class="text-end text-danger">{{ '{:,}'.format(r.pension) }}</td>
+        <td class="text-end fw-bold text-success">{{ '{:,}'.format(r.net_pay) }}</td>
+        <td>
+          <form method="post" action="{{ url_for('salary_delete', sid=r.id) }}" class="d-inline" onsubmit="return confirm('삭제?')">
+            <button class="btn btn-outline-danger btn-sm"><i class="fa-solid fa-trash"></i></button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="13" class="text-center text-muted py-4">등록된 급여 내역이 없습니다.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="modal fade" id="addModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <form class="modal-content" method="post" action="{{ url_for('salary_add') }}">
+      <input type="hidden" name="year" value="{{ year }}">
+      <input type="hidden" name="month" value="{{ month }}">
+      <div class="modal-header"><h5 class="modal-title">급여 등록 ({{ year }}년 {{ month }}월)</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label">직원 *</label>
+            <select name="employee_id" class="form-select" required onchange="fillBase(this)">
+              <option value="">선택하세요</option>
+              {% for e in emps %}<option value="{{ e.id }}" data-base="{{ e.base_salary }}">{{ e.co_name }} — {{ e.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-12"><h6 class="text-success">지급 항목</h6></div>
+          <div class="col-md-3"><label class="form-label">기본급</label><input id="f_base" name="base" type="number" class="form-control" value="0"></div>
+          <div class="col-md-3"><label class="form-label">연장근로수당</label><input name="overtime_pay" type="number" class="form-control" value="0"></div>
+          <div class="col-md-3"><label class="form-label">상여금</label><input name="bonus" type="number" class="form-control" value="0"></div>
+          <div class="col-md-3"><label class="form-label">제수당</label><input name="allowance" type="number" class="form-control" value="0"></div>
+          <div class="col-12"><h6 class="text-danger">공제 항목</h6></div>
+          <div class="col-md-3"><label class="form-label">소득세</label><input name="income_tax" type="number" class="form-control" value="0"></div>
+          <div class="col-md-3"><label class="form-label">건강보험</label><input name="health_ins" type="number" class="form-control" value="0"></div>
+          <div class="col-md-3"><label class="form-label">고용보험</label><input name="employ_ins" type="number" class="form-control" value="0"></div>
+          <div class="col-md-3"><label class="form-label">국민연금</label><input name="pension" type="number" class="form-control" value="0"></div>
+          <div class="col-12"><label class="form-label">메모</label><input name="memo" class="form-control"></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button><button class="btn btn-primary">등록</button></div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function fillBase(sel){
+  const opt = sel.options[sel.selectedIndex];
+  document.getElementById('f_base').value = opt.dataset.base || 0;
+}
+</script>
+{% endblock %}

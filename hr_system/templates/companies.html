@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% block title %}회사 관리{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center mb-4 gap-2">
+  <h5 class="fw-bold mb-0"><i class="fa-solid fa-building me-2 text-primary"></i>회사 관리</h5>
+  <button class="btn btn-primary btn-sm ms-auto" data-bs-toggle="modal" data-bs-target="#addModal"><i class="fa-solid fa-plus me-1"></i>회사 등록</button>
+</div>
+<div class="card stat-card">
+  <div class="card-body p-0">
+    <table class="table mb-0">
+      <thead><tr><th>회사명</th><th>사업자번호</th><th>대표자</th><th>업종</th><th>연락처</th><th>계약일</th><th class="text-center">재직자</th><th></th></tr></thead>
+      <tbody>
+      {% for r in rows %}
+      <tr>
+        <td class="fw-semibold">{{ r.name }}</td>
+        <td class="text-muted">{{ r.biz_no or '-' }}</td>
+        <td>{{ r.ceo or '-' }}</td>
+        <td>{{ r.industry or '-' }}</td>
+        <td>{{ r.phone or '-' }}</td>
+        <td class="text-muted">{{ r.contract_date or '-' }}</td>
+        <td class="text-center"><span class="badge bg-primary">{{ r.emp_cnt }}명</span></td>
+        <td>
+          <button class="btn btn-outline-secondary btn-sm" onclick="editCo({{ r.id }})"><i class="fa-solid fa-pen"></i></button>
+          <form method="post" action="{{ url_for('company_delete', cid=r.id) }}" class="d-inline" onsubmit="return confirm('정말 삭제하시겠습니까?')">
+            <button class="btn btn-outline-danger btn-sm"><i class="fa-solid fa-trash"></i></button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" class="text-center text-muted py-4">등록된 회사가 없습니다. 위 버튼으로 등록하세요.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- 등록 모달 -->
+<div class="modal fade" id="addModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <form class="modal-content" method="post" action="{{ url_for('company_add') }}">
+      <div class="modal-header"><h5 class="modal-title">회사 등록</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-md-6"><label class="form-label">회사명 *</label><input name="name" class="form-control" required></div>
+          <div class="col-md-6"><label class="form-label">사업자등록번호</label><input name="biz_no" class="form-control" placeholder="000-00-00000"></div>
+          <div class="col-md-6"><label class="form-label">대표자</label><input name="ceo" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">연락처</label><input name="phone" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">업종</label><input name="industry" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">자문계약일</label><input name="contract_date" type="date" class="form-control"></div>
+          <div class="col-12"><label class="form-label">주소</label><input name="address" class="form-control"></div>
+          <div class="col-12"><label class="form-label">메모</label><textarea name="memo" class="form-control" rows="2"></textarea></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button><button class="btn btn-primary">등록</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- 수정 모달 -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <form class="modal-content" id="editForm" method="post">
+      <div class="modal-header"><h5 class="modal-title">회사 수정</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-md-6"><label class="form-label">회사명 *</label><input id="e_name" name="name" class="form-control" required></div>
+          <div class="col-md-6"><label class="form-label">사업자등록번호</label><input id="e_biz_no" name="biz_no" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">대표자</label><input id="e_ceo" name="ceo" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">연락처</label><input id="e_phone" name="phone" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">업종</label><input id="e_industry" name="industry" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">자문계약일</label><input id="e_contract_date" name="contract_date" type="date" class="form-control"></div>
+          <div class="col-12"><label class="form-label">주소</label><input id="e_address" name="address" class="form-control"></div>
+          <div class="col-12"><label class="form-label">메모</label><textarea id="e_memo" name="memo" class="form-control" rows="2"></textarea></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button><button class="btn btn-primary">저장</button></div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function editCo(id){
+  fetch('/companies/'+id+'/json').then(r=>r.json()).then(d=>{
+    document.getElementById('editForm').action='/companies/'+id+'/edit';
+    document.getElementById('e_name').value=d.name||'';
+    document.getElementById('e_biz_no').value=d.biz_no||'';
+    document.getElementById('e_ceo').value=d.ceo||'';
+    document.getElementById('e_phone').value=d.phone||'';
+    document.getElementById('e_industry').value=d.industry||'';
+    document.getElementById('e_contract_date').value=d.contract_date||'';
+    document.getElementById('e_address').value=d.address||'';
+    document.getElementById('e_memo').value=d.memo||'';
+    new bootstrap.Modal(document.getElementById('editModal')).show();
+  });
+}
+</script>
+{% endblock %}

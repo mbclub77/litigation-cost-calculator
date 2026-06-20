@@ -1,0 +1,52 @@
+:root {
+  --sidebar-bg: #1e2a4a;
+  --sidebar-text: #b8c7e0;
+  --sidebar-active: #4e73df;
+  --sidebar-hover: #2e3d6a;
+  --header-bg: #fff;
+  --accent: #4e73df;
+  --accent2: #1cc88a;
+  --warning: #f6c23e;
+  --danger: #e74a3b;
+}
+body { background: #f4f6fc; font-family: 'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif; }
+/* sidebar */
+#sidebar { width: 220px; min-height: 100vh; background: var(--sidebar-bg); position: fixed; top:0; left:0; z-index:100; transition: width .2s; }
+#sidebar .brand { padding:20px 16px; font-size:1.1rem; font-weight:700; color:#fff; border-bottom:1px solid #2e3d6a; }
+#sidebar .brand small { display:block; font-size:.7rem; font-weight:400; color:var(--sidebar-text); margin-top:2px; }
+#sidebar .nav-link { color: var(--sidebar-text); padding:10px 20px; display:flex; align-items:center; gap:10px; border-radius:0; transition:.15s; font-size:.9rem; }
+#sidebar .nav-link:hover { background: var(--sidebar-hover); color:#fff; }
+#sidebar .nav-link.active { background: var(--sidebar-active); color:#fff; }
+#sidebar .nav-link i { width:18px; text-align:center; }
+/* content */
+#content { margin-left:220px; min-height:100vh; }
+.topbar { background:#fff; border-bottom:1px solid #e3e6f0; padding:12px 24px; display:flex; align-items:center; gap:12px; position:sticky; top:0; z-index:50; }
+.topbar .sel-label { font-size:.85rem; color:#666; white-space:nowrap; }
+.page-body { padding:24px; }
+/* cards */
+.stat-card { border:none; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.06); }
+.stat-card .icon { width:52px; height:52px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1.4rem; }
+/* table */
+.table thead th { background:#f8f9fc; font-size:.82rem; color:#666; font-weight:600; border-top:none; }
+.table tbody tr:hover { background:#f0f4ff; }
+.table td { vertical-align:middle; font-size:.88rem; }
+/* badge */
+.badge-접수 { background:#4e73df; }
+.badge-처리중 { background:#f6c23e; color:#333; }
+.badge-완료 { background:#1cc88a; }
+.badge-반려 { background:#e74a3b; }
+.badge-승인 { background:#1cc88a; }
+.badge-대기 { background:#858796; }
+.badge-재직 { background:#1cc88a; }
+.badge-퇴직 { background:#858796; }
+.badge-휴직 { background:#f6c23e; color:#333; }
+/* flash */
+.flash-msg { position:fixed; top:16px; right:20px; z-index:9999; min-width:260px; animation:fadeIn .3s; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(-10px)} to{opacity:1;transform:translateY(0)} }
+/* modal */
+.modal-header { background: var(--sidebar-bg); color:#fff; }
+.modal-header .btn-close { filter:invert(1); }
+/* priority */
+.pri-긴급 { color:#e74a3b; font-weight:700; }
+.pri-높음 { color:#f6c23e; }
+.pri-보통 { color:#4e73df; }
