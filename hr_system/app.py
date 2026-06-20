@@ -3,10 +3,22 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
 from db import get_db, init_db, calc_annual_leave
 from datetime import date
-import os
+import os, traceback, logging
+
+logging.basicConfig(
+    filename=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'error.log'),
+    level=logging.ERROR,
+    format='%(asctime)s %(levelname)s %(message)s'
+)
 
 app = Flask(__name__)
 app.secret_key = 'hr-system-secret-2024'
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    tb = traceback.format_exc()
+    logging.error(tb)
+    return f"<pre style='color:red;padding:20px'><b>오류 발생:</b>\n{tb}</pre>", 500
 
 @app.before_request
 def setup():

@@ -3,7 +3,7 @@
 import sqlite3, os
 from datetime import date, timedelta
 
-DB_PATH = os.path.join(os.path.dirname(__file__), 'hr.db')
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'hr.db')
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
