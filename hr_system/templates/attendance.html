@@ -2,9 +2,11 @@
 {% block title %}출퇴근 관리{% endblock %}
 {% block content %}
 <div class="d-flex align-items-center mb-3 gap-2 flex-wrap">
-  <h5 class="fw-bold mb-0"><i class="fa-solid fa-clock me-2 text-primary"></i>출퇴근 관리</h5>
+  <h5 class="fw-bold mb-0">
+    <i class="fa-solid fa-clock me-2" style="color:var(--gold)"></i>출퇴근 관리
+  </h5>
   <form class="d-flex gap-2 ms-auto align-items-center flex-wrap">
-    <div class="btn-group btn-group-sm" role="group">
+    <div class="btn-group btn-group-sm">
       <a href="?year={{ year }}&month={{ month }}&mode=month"
          class="btn {% if mode=='month' %}btn-primary{% else %}btn-outline-primary{% endif %}">
         <i class="fa-solid fa-calendar-week me-1"></i>월별
@@ -19,36 +21,46 @@
     </select>
     {% if mode == 'month' %}
     <select name="month" class="form-select form-select-sm" style="width:70px" onchange="this.form.submit()">
-      {% for m in range(1,13) %}<option value="{{ m }}" {% if m==month %}selected{% endif %}>{{ m }}월</option>{% endfor %}
+      {% for m in range(1,13) %}
+      <option value="{{ m }}" {% if m==month %}selected{% endif %}>{{ m }}월</option>
+      {% endfor %}
     </select>
     {% endif %}
     <input type="hidden" name="mode" value="{{ mode }}">
+    {% if not current_user.is_employee %}
     <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#addModal">
       <i class="fa-solid fa-plus me-1"></i>기록 추가
     </button>
+    {% endif %}
   </form>
 </div>
 
+<div class="alert alert-light border mb-3 py-2 small">
+  <i class="fa-solid fa-balance-scale me-1 text-muted"></i>
+  <strong>근로기준법 제54조</strong> 휴게시간 자동 공제:
+  4시간 이상 → 30분 / 8시간 이상 → 1시간 공제 후 근무시간 산정
+</div>
+
 {% if mode == 'year' %}
-<!-- ── 연간 보기 ── -->
+<!-- 연간 보기 -->
 {% set total_days = year_monthly|sum(attribute='days') %}
-{% set total_h = year_monthly|sum(attribute='total_h') %}
-{% set total_ot = year_monthly|sum(attribute='total_ot') %}
+{% set total_h    = year_monthly|sum(attribute='total_h') %}
+{% set total_ot   = year_monthly|sum(attribute='total_ot') %}
 <div class="row g-3 mb-4">
   <div class="col-md-4">
-    <div class="card stat-card text-center py-3">
+    <div class="stat-card text-center py-3">
       <div class="text-muted small">{{ year }}년 총 근무일</div>
       <div class="fw-bold fs-3 text-primary">{{ total_days }}일</div>
     </div>
   </div>
   <div class="col-md-4">
-    <div class="card stat-card text-center py-3">
+    <div class="stat-card text-center py-3">
       <div class="text-muted small">총 근무시간</div>
       <div class="fw-bold fs-3 text-success">{{ '%.1f'|format(total_h) }}h</div>
     </div>
   </div>
   <div class="col-md-4">
-    <div class="card stat-card text-center py-3">
+    <div class="stat-card text-center py-3">
       <div class="text-muted small">총 연장시간</div>
       <div class="fw-bold fs-3 text-warning">{{ '%.1f'|format(total_ot) }}h</div>
     </div>
@@ -56,10 +68,9 @@
 </div>
 
 <div class="row g-4">
-  <!-- 월별 요약 -->
   <div class="col-md-5">
-    <div class="card stat-card">
-      <div class="card-header bg-white fw-semibold py-2">{{ year }}년 월별 근무 현황</div>
+    <div class="stat-card">
+      <div class="card-header py-2">{{ year }}년 월별 근무 현황</div>
       <div class="card-body p-0">
         <table class="table mb-0">
           <thead><tr><th>월</th><th class="text-center">근무일</th><th class="text-center">근무시간</th><th class="text-center">연장시간</th></tr></thead>
@@ -76,8 +87,7 @@
           {% endfor %}
           {% if year_monthly %}
           <tr class="table-light fw-bold">
-            <td>합계</td>
-            <td class="text-center">{{ total_days }}일</td>
+            <td>합계</td><td class="text-center">{{ total_days }}일</td>
             <td class="text-center">{{ '%.1f'|format(total_h) }}h</td>
             <td class="text-center text-warning">{{ '%.1f'|format(total_ot) }}h</td>
           </tr>
@@ -87,11 +97,9 @@
       </div>
     </div>
   </div>
-
-  <!-- 직원별 연간 합계 -->
   <div class="col-md-7">
-    <div class="card stat-card">
-      <div class="card-header bg-white fw-semibold py-2">직원별 연간 근무 현황</div>
+    <div class="stat-card">
+      <div class="card-header py-2">직원별 연간 근무 현황</div>
       <div class="card-body p-0">
         <table class="table mb-0">
           <thead><tr><th>회사</th><th>성명</th><th>부서</th><th class="text-center">근무일</th><th class="text-center">근무시간</th><th class="text-center">연장시간</th></tr></thead>
@@ -116,23 +124,23 @@
 </div>
 
 {% else %}
-<!-- ── 월별 보기 ── -->
+<!-- 월별 보기 -->
 {% if rows %}
 <div class="row g-3 mb-3">
   <div class="col-md-4">
-    <div class="card stat-card text-center py-2">
+    <div class="stat-card text-center py-2">
       <div class="text-muted" style="font-size:.78rem">근무일수</div>
       <div class="fw-bold fs-5 text-primary">{{ rows|length }}일</div>
     </div>
   </div>
   <div class="col-md-4">
-    <div class="card stat-card text-center py-2">
-      <div class="text-muted" style="font-size:.78rem">총 근무시간</div>
+    <div class="stat-card text-center py-2">
+      <div class="text-muted" style="font-size:.78rem">총 근무시간 (휴게제외)</div>
       <div class="fw-bold fs-5 text-success">{{ '%.1f'|format(rows|sum(attribute='work_hours')) }}h</div>
     </div>
   </div>
   <div class="col-md-4">
-    <div class="card stat-card text-center py-2">
+    <div class="stat-card text-center py-2">
       <div class="text-muted" style="font-size:.78rem">총 연장시간</div>
       <div class="fw-bold fs-5 text-warning">{{ '%.1f'|format(rows|sum(attribute='overtime_hours')) }}h</div>
     </div>
@@ -140,8 +148,8 @@
 </div>
 {% endif %}
 
-<div class="card stat-card">
-  <div class="card-header bg-white d-flex align-items-center">
+<div class="stat-card">
+  <div class="card-header d-flex align-items-center">
     <span class="fw-semibold">{{ year }}년 {{ month }}월 출퇴근 기록</span>
     <span class="ms-auto text-muted small">총 {{ rows|length }}건</span>
   </div>
@@ -152,7 +160,8 @@
           <th>회사</th><th>성명</th><th>부서</th><th>근무일</th>
           <th>출근</th><th>퇴근</th>
           <th class="text-center">근무시간</th><th class="text-center">연장시간</th>
-          <th>메모</th><th></th>
+          <th>메모</th>
+          {% if not current_user.is_employee %}<th></th>{% endif %}
         </tr>
       </thead>
       <tbody>
@@ -169,14 +178,20 @@
           {{ '%.1f'|format(r.overtime_hours) }}h
         </td>
         <td class="text-muted small">{{ r.memo or '' }}</td>
+        {% if not current_user.is_employee %}
         <td>
-          <form method="post" action="{{ url_for('attendance_delete', aid=r.id) }}" class="d-inline" onsubmit="return confirm('삭제?')">
+          <form method="post" action="{{ url_for('attendance_delete', aid=r.id) }}"
+                class="d-inline" onsubmit="return confirm('삭제?')">
             <button class="btn btn-outline-danger btn-sm"><i class="fa-solid fa-trash"></i></button>
           </form>
         </td>
+        {% endif %}
       </tr>
       {% else %}
-      <tr><td colspan="10" class="text-center text-muted py-4">출퇴근 기록이 없습니다.</td></tr>
+      <tr>
+        <td colspan="{% if current_user.is_employee %}9{% else %}10{% endif %}"
+            class="text-center text-muted py-4">출퇴근 기록이 없습니다.</td>
+      </tr>
       {% endfor %}
       </tbody>
       {% if rows %}
@@ -185,7 +200,7 @@
           <td colspan="6" class="text-end fw-semibold">{{ month }}월 합계</td>
           <td class="text-center fw-bold text-success">{{ '%.1f'|format(rows|sum(attribute='work_hours')) }}h</td>
           <td class="text-center fw-bold text-warning">{{ '%.1f'|format(rows|sum(attribute='overtime_hours')) }}h</td>
-          <td colspan="2"></td>
+          <td colspan="{% if current_user.is_employee %}1{% else %}2{% endif %}"></td>
         </tr>
       </tfoot>
       {% endif %}
@@ -194,6 +209,7 @@
 </div>
 {% endif %}
 
+{% if not current_user.is_employee %}
 <!-- 출퇴근 기록 추가 모달 -->
 <div class="modal fade" id="addModal" tabindex="-1">
   <div class="modal-dialog">
@@ -205,16 +221,18 @@
       <div class="modal-body">
         <div class="row g-3">
           <div class="col-12">
-            <label class="form-label">직원 *</label>
+            <label class="form-label">직원 <span class="text-danger">*</span></label>
             <select name="employee_id" class="form-select" required>
               <option value="">선택하세요</option>
-              {% for e in emps %}<option value="{{ e.id }}">{{ e.co_name }} — {{ e.name }}</option>{% endfor %}
+              {% for e in emps %}
+              <option value="{{ e.id }}">{{ e.co_name }} — {{ e.name }}</option>
+              {% endfor %}
             </select>
           </div>
           <div class="col-12">
-            <label class="form-label">근무일 *</label>
+            <label class="form-label">근무일 <span class="text-danger">*</span></label>
             <input name="work_date" type="date" class="form-control"
-              value="{{ '%d-%02d-%02d'|format(year,month,1) }}" required>
+                   value="{{ '%d-%02d-%02d'|format(year,month,1) }}" required>
           </div>
           <div class="col-6">
             <label class="form-label">출근 시각</label>
@@ -226,11 +244,14 @@
           </div>
           <div class="col-12">
             <div class="alert alert-light py-2 mb-0 small" id="hoursPreview">
-              근무시간: <strong>8.0h</strong> / 연장: <strong>0.0h</strong>
-              (09:00 ~ 18:00 기준)
+              근무시간: <strong>8.0h</strong> / 연장: <strong>0.0h</strong> / 휴게: <strong>1.0h</strong>
+              <span class="text-muted">(09:00 ~ 18:00)</span>
             </div>
           </div>
-          <div class="col-12"><label class="form-label">메모</label><input name="memo" class="form-control"></div>
+          <div class="col-12">
+            <label class="form-label">메모</label>
+            <input name="memo" class="form-control">
+          </div>
         </div>
       </div>
       <div class="modal-footer">
@@ -240,9 +261,15 @@
     </form>
   </div>
 </div>
+{% endif %}
 {% endblock %}
 {% block scripts %}
 <script>
+function calcRest(totalH) {
+  if (totalH >= 8) return 1.0;
+  if (totalH >= 4) return 0.5;
+  return 0.0;
+}
 function previewHours() {
   const ci = document.querySelector('[name=check_in]').value;
   const co = document.querySelector('[name=check_out]').value;
@@ -251,11 +278,15 @@ function previewHours() {
   const [h2,m2] = co.split(':').map(Number);
   const total = (h2*60+m2 - h1*60-m1) / 60;
   if (total <= 0) return;
-  const wh = Math.min(total, 8).toFixed(1);
-  const ot = Math.max(0, total - 8).toFixed(1);
+  const rest   = calcRest(total);
+  const actual = Math.max(0, total - rest);
+  const wh     = Math.min(actual, 8).toFixed(1);
+  const ot     = Math.max(0, actual - 8).toFixed(1);
   document.getElementById('hoursPreview').innerHTML =
-    `근무시간: <strong>${wh}h</strong> / 연장: <strong class="${ot>0?'text-warning':''}">` +
-    `${ot}h</strong> (${ci} ~ ${co})`;
+    `근무시간: <strong>${wh}h</strong> / ` +
+    `연장: <strong class="${ot>0?'text-warning':''}">${ot}h</strong> / ` +
+    `휴게: <strong>${rest.toFixed(1)}h</strong> ` +
+    `<span class="text-muted">(${ci} ~ ${co})</span>`;
 }
 previewHours();
 </script>

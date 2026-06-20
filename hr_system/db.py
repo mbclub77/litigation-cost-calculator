@@ -113,12 +113,21 @@ def init_db():
     """)
     conn.commit()
 
-    # Migration: photo column
-    try:
-        conn.execute("ALTER TABLE employees ADD COLUMN photo TEXT")
-        conn.commit()
-    except Exception:
-        pass
+    # Migrations — each wrapped individually so one failure doesn't block others
+    migrations = [
+        "ALTER TABLE employees ADD COLUMN photo TEXT",
+        "ALTER TABLE users ADD COLUMN employee_id INTEGER",
+        "ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'active'",
+        "ALTER TABLE salary ADD COLUMN allowance_detail TEXT",
+        "ALTER TABLE salary ADD COLUMN work_days INTEGER DEFAULT 0",
+        "ALTER TABLE salary ADD COLUMN total_hours REAL DEFAULT 0",
+    ]
+    for sql in migrations:
+        try:
+            conn.execute(sql)
+            conn.commit()
+        except Exception:
+            pass
 
     # 최초 관리자 계정 생성 (admin / admin1234)
     if not conn.execute("SELECT id FROM users WHERE username='admin'").fetchone():
@@ -133,10 +142,26 @@ def init_db():
 def calc_annual_leave(hire_date_str):
     try:
         hire = date.fromisoformat(hire_date_str)
-    except:
+    except Exception:
         return 15
     today = date.today()
     years = (today - hire).days // 365
     if years < 1:
         return min((today - hire).days // 30, 11)
     return min(15 + (years - 1) // 2, 25)
+
+def calc_work_hours(total_h):
+    """근로기준법 제54조 휴게시간 자동 공제
+    total_h >= 8h -> 1h 휴게, >= 4h -> 30분 휴게, < 4h -> 휴게 없음
+    Returns (regular_hours, overtime_hours, rest_hours)
+    """
+    if total_h >= 8:
+        rest = 1.0
+    elif total_h >= 4:
+        rest = 0.5
+    else:
+        rest = 0.0
+    actual = max(0, total_h - rest)
+    regular = round(min(actual, 8), 2)
+    overtime = round(max(0, actual - 8), 2)
+    return regular, overtime, round(rest, 2)

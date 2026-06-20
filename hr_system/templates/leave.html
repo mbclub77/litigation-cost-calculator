@@ -2,28 +2,32 @@
 {% block title %}연차 관리{% endblock %}
 {% block content %}
 <div class="d-flex align-items-center mb-3 gap-2 flex-wrap">
-  <h5 class="fw-bold mb-0"><i class="fa-solid fa-calendar-days me-2 text-primary"></i>연차 관리</h5>
+  <h5 class="fw-bold mb-0">
+    <i class="fa-solid fa-calendar-days me-2" style="color:var(--gold)"></i>연차 관리
+  </h5>
   <form class="d-flex gap-2 ms-auto flex-wrap align-items-center">
     <select name="year" class="form-select form-select-sm" style="width:90px" onchange="this.form.submit()">
       {% for y in range(2020,2030) %}<option {% if y==year %}selected{% endif %}>{{ y }}</option>{% endfor %}
     </select>
+    {% if not current_user.is_employee %}
     <button class="btn btn-outline-success btn-sm" type="button"
       onclick="if(confirm('{{ year }}년 법정 연차를 재직 직원 전체에게 자동 부여합니까?')) autoAssign()">
       <i class="fa-solid fa-wand-magic-sparkles me-1"></i>법정연차 자동부여
     </button>
-    <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#reqModal">
+    {% endif %}
+    <button class="btn btn-outline-primary btn-sm" type="button"
+            data-bs-toggle="modal" data-bs-target="#reqModal">
       <i class="fa-solid fa-plus me-1"></i>연차 신청
     </button>
   </form>
 </div>
 
-<!-- 법정연차 자동부여 폼 (숨김) -->
+<!-- 법정연차 자동부여 폼 -->
 <form id="autoAssignForm" method="post" action="{{ url_for('leave_auto_assign') }}" style="display:none">
   <input type="hidden" name="year" value="{{ year }}">
 </form>
 
-<!-- 연차 현황 안내 -->
-<div class="alert alert-light border mb-3 py-2">
+<div class="alert alert-light border mb-3 py-2 small">
   <i class="fa-solid fa-circle-info me-2 text-primary"></i>
   <strong>근로기준법 제60조</strong>
   1년 미만: 개근 1개월당 1일 (최대 11일) /
@@ -31,8 +35,9 @@
 </div>
 
 <!-- 연차 현황 테이블 -->
-<div class="card stat-card mb-4">
-  <div class="card-header bg-white fw-semibold py-3 d-flex align-items-center">
+{% if not current_user.is_employee %}
+<div class="stat-card mb-4">
+  <div class="card-header py-3 d-flex align-items-center">
     <span>{{ year }}년 연차 현황</span>
     <span class="ms-auto text-muted small">총 {{ emps|length }}명</span>
   </div>
@@ -58,17 +63,13 @@
         <td class="fw-semibold">{{ e.name }}</td>
         <td>{{ e.dept or '-' }}</td>
         <td class="text-muted small">{{ e.hire_date or '-' }}</td>
-        <td class="text-center">
-          <span class="badge bg-secondary">{{ statutory }}일</span>
-        </td>
+        <td class="text-center"><span class="badge bg-secondary">{{ statutory }}일</span></td>
         <td class="text-center fw-semibold text-primary">{{ '%.1f'|format(e.total_days) }}일</td>
         <td class="text-center text-danger">{{ '%.1f'|format(e.used_days) }}일</td>
         <td>
           <div class="d-flex align-items-center gap-2">
             <span class="fw-bold {% if remain < 0 %}text-danger{% elif remain < 3 %}text-warning{% else %}text-success{% endif %}"
-              style="min-width:40px">
-              {{ '%.1f'|format(remain) }}일
-            </span>
+                  style="min-width:40px">{{ '%.1f'|format(remain) }}일</span>
             {% if e.total_days > 0 %}
             <div class="progress flex-grow-1" style="height:8px">
               <div class="progress-bar {% if pct >= 100 %}bg-danger{% elif pct >= 70 %}bg-warning{% else %}bg-success{% endif %}"
@@ -94,23 +95,64 @@
     </table>
   </div>
 </div>
+{% else %}
+<!-- 직원 본인 연차 현황 -->
+{% for e in emps %}
+{% set remain = e.total_days - e.used_days %}
+{% set pct = ((e.used_days / e.total_days * 100) if e.total_days > 0 else 0)|int %}
+<div class="stat-card mb-4 p-4">
+  <div class="row g-3 text-center">
+    <div class="col-3">
+      <div class="text-muted small">부여일수</div>
+      <div class="fw-bold fs-4 text-primary">{{ '%.1f'|format(e.total_days) }}<span class="fs-6 ms-1">일</span></div>
+    </div>
+    <div class="col-3">
+      <div class="text-muted small">사용일수</div>
+      <div class="fw-bold fs-4 text-danger">{{ '%.1f'|format(e.used_days) }}<span class="fs-6 ms-1">일</span></div>
+    </div>
+    <div class="col-3">
+      <div class="text-muted small">잔여일수</div>
+      <div class="fw-bold fs-4 {% if remain < 3 %}text-danger{% else %}text-success{% endif %}">
+        {{ '%.1f'|format(remain) }}<span class="fs-6 ms-1">일</span>
+      </div>
+    </div>
+    <div class="col-3">
+      <div class="text-muted small">사용률</div>
+      <div class="fw-bold fs-4">{{ pct }}<span class="fs-6 ms-1">%</span></div>
+    </div>
+    <div class="col-12">
+      <div class="progress" style="height:12px;border-radius:6px">
+        <div class="progress-bar {% if pct >= 100 %}bg-danger{% elif pct >= 70 %}bg-warning{% else %}bg-success{% endif %}"
+             style="width:{{ [pct, 100]|min }}%"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="alert alert-info">연차 정보가 없습니다. 관리자에게 문의하세요.</div>
+{% endfor %}
+{% endif %}
 
 <!-- 연차 신청 목록 -->
-<div class="card stat-card">
-  <div class="card-header bg-white fw-semibold py-3">{{ year }}년 연차 신청 내역</div>
+<div class="stat-card">
+  <div class="card-header py-3">{{ year }}년 연차 신청 내역</div>
   <div class="card-body p-0">
     <table class="table mb-0">
       <thead>
         <tr>
-          <th>회사</th><th>성명</th><th>유형</th><th>시작일</th><th>종료일</th>
-          <th class="text-center">일수</th><th>사유</th><th>상태</th><th>신청일</th><th></th>
+          {% if not current_user.is_employee %}<th>회사</th><th>성명</th>{% endif %}
+          <th>유형</th><th>시작일</th><th>종료일</th>
+          <th class="text-center">일수</th><th>사유</th><th>상태</th><th>신청일</th>
+          {% if not current_user.is_employee %}<th></th>{% endif %}
         </tr>
       </thead>
       <tbody>
       {% for r in reqs %}
       <tr>
+        {% if not current_user.is_employee %}
         <td class="text-muted small">{{ r.co_name }}</td>
         <td class="fw-semibold">{{ r.emp_name }}</td>
+        {% endif %}
         <td>{{ r.leave_type }}</td>
         <td>{{ r.start_date }}</td>
         <td>{{ r.end_date }}</td>
@@ -118,6 +160,7 @@
         <td class="text-muted small">{{ r.reason or '-' }}</td>
         <td><span class="badge badge-{{ r.status }}">{{ r.status }}</span></td>
         <td class="text-muted small">{{ r.created_at }}</td>
+        {% if not current_user.is_employee %}
         <td>
           {% if r.status == '대기' %}
           <form method="post" action="{{ url_for('leave_approve', rid=r.id) }}" class="d-inline">
@@ -128,16 +171,21 @@
           </form>
           {% endif %}
         </td>
+        {% endif %}
       </tr>
       {% else %}
-      <tr><td colspan="10" class="text-center text-muted py-3">신청 내역이 없습니다.</td></tr>
+      <tr>
+        <td colspan="{% if current_user.is_employee %}7{% else %}10{% endif %}"
+            class="text-center text-muted py-3">신청 내역이 없습니다.</td>
+      </tr>
       {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
 
-<!-- 연차 부여 모달 -->
+<!-- 연차 부여 모달 (관리자/기업담당자) -->
+{% if not current_user.is_employee %}
 <div class="modal fade" id="balanceModal" tabindex="-1">
   <div class="modal-dialog">
     <form class="modal-content" method="post" action="{{ url_for('leave_balance_set') }}">
@@ -150,17 +198,13 @@
       <div class="modal-body">
         <div class="alert alert-info py-2 small mb-3">
           <i class="fa-solid fa-circle-info me-1"></i>
-          법정 연차: <strong id="b_statutory"></strong>일
-          (근로기준법 제60조 기준 자동 계산)
+          법정 연차: <strong id="b_statutory"></strong>일 (근로기준법 제60조 기준)
         </div>
         <label class="form-label fw-semibold">부여 연차 일수</label>
         <div class="input-group">
           <input id="b_total" name="total_days" type="number" step="0.5" class="form-control" required>
-          <button type="button" class="btn btn-outline-secondary" onclick="useStatutory()">
-            법정일수 적용
-          </button>
+          <button type="button" class="btn btn-outline-secondary" onclick="useStatutory()">법정일수 적용</button>
         </div>
-        <div class="form-text">법정 연차를 기준으로 회사 사정에 맞게 조정할 수 있습니다.</div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
@@ -169,6 +213,7 @@
     </form>
   </div>
 </div>
+{% endif %}
 
 <!-- 연차 신청 모달 -->
 <div class="modal fade" id="reqModal" tabindex="-1">
@@ -180,13 +225,15 @@
       </div>
       <div class="modal-body">
         <div class="row g-3">
+          {% if not current_user.is_employee %}
           <div class="col-12">
-            <label class="form-label">직원 *</label>
+            <label class="form-label">직원 <span class="text-danger">*</span></label>
             <select name="employee_id" class="form-select" required>
               <option value="">선택하세요</option>
               {% for e in emps %}<option value="{{ e.id }}">{{ e.co_name }} — {{ e.name }}</option>{% endfor %}
             </select>
           </div>
+          {% endif %}
           <div class="col-6">
             <label class="form-label">휴가 유형</label>
             <select name="leave_type" class="form-select">
@@ -197,9 +244,18 @@
             <label class="form-label">일수</label>
             <input name="days" type="number" step="0.5" value="1" class="form-control" required>
           </div>
-          <div class="col-6"><label class="form-label">시작일 *</label><input name="start_date" type="date" class="form-control" required></div>
-          <div class="col-6"><label class="form-label">종료일 *</label><input name="end_date" type="date" class="form-control" required></div>
-          <div class="col-12"><label class="form-label">사유</label><input name="reason" class="form-control"></div>
+          <div class="col-6">
+            <label class="form-label">시작일 <span class="text-danger">*</span></label>
+            <input name="start_date" type="date" class="form-control" required>
+          </div>
+          <div class="col-6">
+            <label class="form-label">종료일 <span class="text-danger">*</span></label>
+            <input name="end_date" type="date" class="form-control" required>
+          </div>
+          <div class="col-12">
+            <label class="form-label">사유</label>
+            <input name="reason" class="form-control">
+          </div>
         </div>
       </div>
       <div class="modal-footer">
@@ -221,11 +277,7 @@ function setBalance(id, name, total, statutory) {
   document.getElementById('b_statutory').textContent = statutory;
   new bootstrap.Modal(document.getElementById('balanceModal')).show();
 }
-function useStatutory() {
-  document.getElementById('b_total').value = _statutory;
-}
-function autoAssign() {
-  document.getElementById('autoAssignForm').submit();
-}
+function useStatutory() { document.getElementById('b_total').value = _statutory; }
+function autoAssign() { document.getElementById('autoAssignForm').submit(); }
 </script>
 {% endblock %}

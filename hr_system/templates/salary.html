@@ -2,7 +2,9 @@
 {% block title %}보수 관리{% endblock %}
 {% block content %}
 <div class="d-flex align-items-center mb-3 gap-2 flex-wrap">
-  <h5 class="fw-bold mb-0"><i class="fa-solid fa-won-sign me-2 text-primary"></i>보수 관리</h5>
+  <h5 class="fw-bold mb-0">
+    <i class="fa-solid fa-won-sign me-2" style="color:var(--gold)"></i>보수 관리
+  </h5>
   <form class="d-flex gap-2 ms-auto align-items-center flex-wrap">
     <div class="btn-group btn-group-sm">
       <a href="?year={{ year }}&month={{ month }}&view=month"
@@ -19,7 +21,7 @@
     </select>
     {% endif %}
     <input type="hidden" name="view" value="{{ view }}">
-    {% if view != 'annual' %}
+    {% if view != 'annual' and not current_user.is_employee %}
     <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#addModal">
       <i class="fa-solid fa-plus me-1"></i>급여 등록
     </button>
@@ -28,64 +30,45 @@
 </div>
 
 {% if view == 'annual' %}
-<!-- ── 연보수 현황 ── -->
 {% set annual_gross = annual_rows|sum(attribute='gross') %}
-{% set annual_net = annual_rows|sum(attribute='net_total') %}
+{% set annual_net   = annual_rows|sum(attribute='net_total') %}
 <div class="row g-3 mb-3">
-  <div class="col-md-4">
-    <div class="card stat-card text-center py-3">
-      <div class="text-muted small">{{ year }}년 총 지급액</div>
-      <div class="fw-bold fs-5 text-primary">{{ '{:,}'.format(annual_gross|int) }}원</div>
-    </div>
-  </div>
-  <div class="col-md-4">
-    <div class="card stat-card text-center py-3">
-      <div class="text-muted small">총 공제액</div>
-      <div class="fw-bold fs-5 text-danger">{{ '{:,}'.format((annual_gross - annual_net)|int) }}원</div>
-    </div>
-  </div>
-  <div class="col-md-4">
-    <div class="card stat-card text-center py-3">
-      <div class="text-muted small">총 실수령액</div>
-      <div class="fw-bold fs-5 text-success">{{ '{:,}'.format(annual_net|int) }}원</div>
-    </div>
-  </div>
+  <div class="col-md-4"><div class="stat-card text-center py-3">
+    <div class="text-muted small">{{ year }}년 총 지급액</div>
+    <div class="fw-bold fs-5 text-primary">{{ '{:,}'.format(annual_gross|int) }}원</div>
+  </div></div>
+  <div class="col-md-4"><div class="stat-card text-center py-3">
+    <div class="text-muted small">총 공제액</div>
+    <div class="fw-bold fs-5 text-danger">{{ '{:,}'.format((annual_gross - annual_net)|int) }}원</div>
+  </div></div>
+  <div class="col-md-4"><div class="stat-card text-center py-3">
+    <div class="text-muted small">총 실수령액</div>
+    <div class="fw-bold fs-5 text-success">{{ '{:,}'.format(annual_net|int) }}원</div>
+  </div></div>
 </div>
-
-<div class="card stat-card">
-  <div class="card-header bg-white fw-semibold py-2">{{ year }}년 직원별 연간 보수 현황</div>
+<div class="stat-card">
+  <div class="card-header py-2">{{ year }}년 직원별 연간 보수 현황</div>
   <div class="card-body p-0">
     <table class="table mb-0">
-      <thead>
-        <tr>
-          <th>회사</th><th>성명</th><th>부서</th>
-          <th class="text-end">연간 지급총액</th>
-          <th class="text-end text-danger">연간 공제액</th>
-          <th class="text-end text-success fw-bold">연간 실수령액</th>
-          <th class="text-center">급여월수</th>
-        </tr>
-      </thead>
+      <thead><tr><th>회사</th><th>성명</th><th>부서</th><th class="text-end">연간 지급총액</th><th class="text-end text-danger">연간 공제액</th><th class="text-end text-success fw-bold">연간 실수령액</th><th class="text-center">급여월수</th></tr></thead>
       <tbody>
       {% for r in annual_rows %}
       <tr>
-        <td class="text-muted small">{{ r.co_name }}</td>
-        <td class="fw-semibold">{{ r.name }}</td>
+        <td class="text-muted small">{{ r.co_name }}</td><td class="fw-semibold">{{ r.name }}</td>
         <td>{{ r.dept or '-' }}</td>
         <td class="text-end">{{ '{:,}'.format(r.gross|int) }}</td>
         <td class="text-end text-danger">{{ '{:,}'.format(r.deductions|int) }}</td>
         <td class="text-end fw-bold text-success">{{ '{:,}'.format(r.net_total|int) }}</td>
         <td class="text-center">{{ r.months }}개월</td>
       </tr>
-      {% else %}
-      <tr><td colspan="7" class="text-center text-muted py-4">{{ year }}년 급여 데이터가 없습니다.</td></tr>
-      {% endfor %}
+      {% else %}<tr><td colspan="7" class="text-center text-muted py-4">{{ year }}년 급여 데이터가 없습니다.</td></tr>{% endfor %}
       </tbody>
       {% if annual_rows %}
       <tfoot class="table-light">
         <tr>
           <td colspan="3" class="fw-bold">합계</td>
           <td class="text-end fw-bold">{{ '{:,}'.format(annual_gross|int) }}</td>
-          <td class="text-end fw-bold text-danger">{{ '{:,}'.format((annual_gross - annual_net)|int) }}</td>
+          <td class="text-end fw-bold text-danger">{{ '{:,}'.format((annual_gross-annual_net)|int) }}</td>
           <td class="text-end fw-bold text-success">{{ '{:,}'.format(annual_net|int) }}</td>
           <td></td>
         </tr>
@@ -96,7 +79,6 @@
 </div>
 
 {% else %}
-<!-- ── 월별 보기 ── -->
 {% if total %}
 <div class="alert alert-info py-2 mb-3">
   <i class="fa-solid fa-calculator me-2"></i>
@@ -104,23 +86,18 @@
 </div>
 {% endif %}
 
-<div class="card stat-card">
+<div class="stat-card">
   <div class="card-body p-0">
     <div class="table-responsive">
       <table class="table mb-0" style="min-width:900px">
-        <thead>
-          <tr>
-            <th>회사</th><th>성명</th><th>부서</th>
-            <th class="text-end">기본급</th><th class="text-end">연장수당</th>
-            <th class="text-end">상여금</th><th class="text-end">제수당</th>
-            <th class="text-end text-danger">소득세</th>
-            <th class="text-end text-danger">건강보험</th>
-            <th class="text-end text-danger">고용보험</th>
-            <th class="text-end text-danger">국민연금</th>
-            <th class="text-end text-success fw-bold">실수령액</th>
-            <th></th>
-          </tr>
-        </thead>
+        <thead><tr>
+          <th>회사</th><th>성명</th><th>부서</th>
+          <th class="text-end">기본급</th><th class="text-end">연장수당</th><th class="text-end">상여금</th>
+          <th class="text-end">제수당</th>
+          <th class="text-end text-danger">소득세</th><th class="text-end text-danger">건강보험</th>
+          <th class="text-end text-danger">고용보험</th><th class="text-end text-danger">국민연금</th>
+          <th class="text-end text-success fw-bold">실수령액</th><th></th>
+        </tr></thead>
         <tbody>
         {% for r in rows %}
         <tr>
@@ -140,9 +117,12 @@
             <button class="btn btn-outline-info btn-sm" onclick="showPayslip({{ r.id }})" title="임금명세서">
               <i class="fa-solid fa-file-invoice-dollar"></i>
             </button>
-            <form method="post" action="{{ url_for('salary_delete', sid=r.id) }}" class="d-inline" onsubmit="return confirm('삭제?')">
+            {% if not current_user.is_employee %}
+            <form method="post" action="{{ url_for('salary_delete', sid=r.id) }}"
+                  class="d-inline" onsubmit="return confirm('삭제?')">
               <button class="btn btn-outline-danger btn-sm"><i class="fa-solid fa-trash"></i></button>
             </form>
+            {% endif %}
           </td>
         </tr>
         {% else %}
@@ -154,6 +134,7 @@
   </div>
 </div>
 
+{% if not current_user.is_employee %}
 <!-- 급여 등록 모달 -->
 <div class="modal fade" id="addModal" tabindex="-1">
   <div class="modal-dialog modal-lg">
@@ -167,55 +148,59 @@
       <div class="modal-body">
         <div class="row g-3">
           <div class="col-12">
-            <label class="form-label fw-semibold">직원 *</label>
+            <label class="form-label fw-semibold">직원 <span class="text-danger">*</span></label>
             <select name="employee_id" class="form-select" required onchange="fillBase(this)">
               <option value="">선택하세요</option>
               {% for e in emps %}
-              <option value="{{ e.id }}" data-base="{{ e.base_salary }}">
-                {{ e.co_name }} — {{ e.name }}
-              </option>
+              <option value="{{ e.id }}" data-base="{{ e.base_salary }}">{{ e.co_name }} — {{ e.name }}</option>
               {% endfor %}
             </select>
           </div>
-          <div class="col-12">
-            <div class="d-flex align-items-center gap-2 mb-1">
-              <h6 class="text-success mb-0">지급 항목</h6>
-            </div>
+          <div class="col-md-4">
+            <label class="form-label">근무일수</label>
+            <input name="work_days" type="number" class="form-control" value="0" min="0">
           </div>
-          <div class="col-md-3">
+          <div class="col-md-4">
+            <label class="form-label">총근로시간</label>
+            <input name="total_hours" type="number" step="0.5" class="form-control" value="0" min="0">
+          </div>
+          <div class="col-12"><h6 class="text-success mb-0 border-bottom pb-1">지급 항목</h6></div>
+          <div class="col-md-4">
             <label class="form-label">기본급</label>
             <input id="f_base" name="base" type="number" class="form-control" value="0" oninput="updateNetPreview()">
           </div>
-          <div class="col-md-3">
+          <div class="col-md-4">
             <label class="form-label">연장근로수당</label>
             <input id="f_overtime" name="overtime_pay" type="number" class="form-control" value="0" oninput="updateNetPreview()">
           </div>
-          <div class="col-md-3">
+          <div class="col-md-4">
             <label class="form-label">상여금</label>
             <input id="f_bonus" name="bonus" type="number" class="form-control" value="0" oninput="updateNetPreview()">
           </div>
-          <div class="col-md-3">
-            <label class="form-label">제수당</label>
-            <input id="f_allowance" name="allowance" type="number" class="form-control" value="0" oninput="updateNetPreview()">
+          <div class="col-12">
+            <label class="form-label fw-semibold">수당 항목</label>
+            <div id="allowanceList"></div>
+            <button type="button" class="btn btn-outline-success btn-sm mt-1" onclick="addAllowanceRow()">
+              <i class="fa-solid fa-plus me-1"></i>수당 추가
+            </button>
           </div>
-
           <div class="col-12">
             <div class="d-flex align-items-center gap-2">
-              <h6 class="text-danger mb-0">공제 항목</h6>
-              <button type="button" class="btn btn-warning btn-sm ms-auto" onclick="autoCalcInsurance()">
+              <h6 class="text-danger mb-0 border-bottom pb-1 flex-grow-1">공제 항목</h6>
+              <button type="button" class="btn btn-warning btn-sm" onclick="autoCalcInsurance()">
                 <i class="fa-solid fa-calculator me-1"></i>4대보험 자동계산
               </button>
             </div>
-            <div class="form-text text-muted">
-              2025년 기준: 국민연금 4.5% · 건강보험 3.545%+장기요양 12.95% · 고용보험 0.9%
+            <div class="form-text" style="font-size:.75rem">
+              2025년: 국민연금 4.5% · 건강보험 3.545%+장기요양 12.95% · 고용보험 0.9%
             </div>
           </div>
           <div class="col-md-3">
-            <label class="form-label">소득세 <small class="text-muted">(근로소득세+지방세)</small></label>
+            <label class="form-label">소득세 <small class="text-muted">(지방세 포함)</small></label>
             <input id="f_income_tax" name="income_tax" type="number" class="form-control" value="0" oninput="updateNetPreview()">
           </div>
           <div class="col-md-3">
-            <label class="form-label">건강보험 <small class="text-muted">(장기요양 포함)</small></label>
+            <label class="form-label">건강보험 <small class="text-muted">(장기요양)</small></label>
             <input id="f_health_ins" name="health_ins" type="number" class="form-control" value="0" oninput="updateNetPreview()">
           </div>
           <div class="col-md-3">
@@ -226,7 +211,6 @@
             <label class="form-label">국민연금</label>
             <input id="f_pension" name="pension" type="number" class="form-control" value="0" oninput="updateNetPreview()">
           </div>
-
           <div class="col-12">
             <div class="alert alert-success py-2 mb-0">
               <i class="fa-solid fa-won-sign me-1"></i>
@@ -244,8 +228,9 @@
   </div>
 </div>
 {% endif %}
+{% endif %}
 
-<!-- 임금명세서 모달 -->
+<!-- 임금명세서 모달 (근로기준법 제48조) -->
 <div class="modal fade" id="payslipModal" tabindex="-1">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
@@ -258,45 +243,63 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
       </div>
-      <div class="modal-body" id="payslipContent">
+      <div class="modal-body">
         <div id="payslipPrint">
           <div class="text-center mb-3">
-            <h4 class="fw-bold mb-1">임 금 명 세 서</h4>
+            <h4 class="fw-bold mb-1" style="letter-spacing:.15em">임 금 명 세 서</h4>
             <p class="text-muted small mb-0" id="ps_period"></p>
+            <p style="font-size:.72rem;color:#aaa">근로기준법 제48조에 따른 임금명세서</p>
           </div>
-          <div class="row mb-3">
+          <div class="row mb-3 g-2">
             <div class="col-6">
-              <table class="table table-borderless table-sm mb-0" style="font-size:.88rem">
-                <tr><th style="width:80px" class="text-muted">회사명</th><td id="ps_co_name" class="fw-semibold"></td></tr>
-                <tr><th class="text-muted">사업자번호</th><td id="ps_biz_no"></td></tr>
-                <tr><th class="text-muted">주소</th><td id="ps_address" class="small"></td></tr>
-              </table>
+              <div class="p-2 border rounded bg-light" style="font-size:.82rem">
+                <div class="fw-bold text-muted mb-1" style="font-size:.7rem;letter-spacing:.05em">사업장 정보</div>
+                <table class="table table-borderless table-sm mb-0">
+                  <tr><th class="text-muted" style="width:90px;font-weight:500">사업장명칭</th><td id="ps_co_name" class="fw-semibold"></td></tr>
+                  <tr><th class="text-muted" style="font-weight:500">사업주 성명</th><td id="ps_ceo"></td></tr>
+                  <tr><th class="text-muted" style="font-weight:500">사업자번호</th><td id="ps_biz_no"></td></tr>
+                  <tr><th class="text-muted" style="font-weight:500">주소</th><td id="ps_address" class="small"></td></tr>
+                </table>
+              </div>
             </div>
             <div class="col-6">
-              <table class="table table-borderless table-sm mb-0" style="font-size:.88rem">
-                <tr><th style="width:80px" class="text-muted">성명</th><td id="ps_emp_name" class="fw-semibold"></td></tr>
-                <tr><th class="text-muted">부서/직위</th><td id="ps_dept_pos"></td></tr>
-                <tr><th class="text-muted">사번</th><td id="ps_emp_no"></td></tr>
-              </table>
+              <div class="p-2 border rounded bg-light" style="font-size:.82rem">
+                <div class="fw-bold text-muted mb-1" style="font-size:.7rem;letter-spacing:.05em">근로자 정보</div>
+                <table class="table table-borderless table-sm mb-0">
+                  <tr><th class="text-muted" style="width:90px;font-weight:500">근로자 성명</th><td id="ps_emp_name" class="fw-semibold"></td></tr>
+                  <tr><th class="text-muted" style="font-weight:500">부서 / 직위</th><td id="ps_dept_pos"></td></tr>
+                  <tr><th class="text-muted" style="font-weight:500">사번</th><td id="ps_emp_no"></td></tr>
+                  <tr><th class="text-muted" style="font-weight:500">지급년월</th><td id="ps_ym" class="fw-semibold"></td></tr>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="mb-3 p-2 border rounded" style="background:#f0f8ff;font-size:.82rem">
+            <div class="fw-bold text-muted mb-1" style="font-size:.7rem">근무 현황</div>
+            <div class="d-flex gap-4 flex-wrap">
+              <span>근로일수: <strong id="ps_work_days">-</strong>일</span>
+              <span>총근로시간: <strong id="ps_total_hours">-</strong>h</span>
+              <span>연장근로시간: <strong id="ps_ot_hours">-</strong>h</span>
+              <span class="text-muted small" id="ps_ot_calc"></span>
             </div>
           </div>
           <div class="row g-3">
             <div class="col-6">
               <div class="card border-success">
-                <div class="card-header bg-success text-white py-2 fw-semibold">지급 내역</div>
-                <table class="table table-sm mb-0">
+                <div class="card-header bg-success text-white py-2 fw-semibold small">지급 내역</div>
+                <table class="table table-sm mb-0" style="font-size:.82rem">
                   <tr><td>기본급</td><td class="text-end fw-semibold" id="ps_base"></td></tr>
                   <tr><td>연장근로수당</td><td class="text-end" id="ps_overtime_pay"></td></tr>
                   <tr><td>상여금</td><td class="text-end" id="ps_bonus"></td></tr>
-                  <tr><td>제수당</td><td class="text-end" id="ps_allowance"></td></tr>
+                  <tbody id="ps_allowance_rows"></tbody>
                   <tr class="table-success"><th>지급 합계</th><th class="text-end" id="ps_gross"></th></tr>
                 </table>
               </div>
             </div>
             <div class="col-6">
               <div class="card border-danger">
-                <div class="card-header bg-danger text-white py-2 fw-semibold">공제 내역</div>
-                <table class="table table-sm mb-0">
+                <div class="card-header bg-danger text-white py-2 fw-semibold small">공제 내역</div>
+                <table class="table table-sm mb-0" style="font-size:.82rem">
                   <tr><td>소득세 (지방세 포함)</td><td class="text-end text-danger" id="ps_income_tax"></td></tr>
                   <tr><td>건강보험 (장기요양 포함)</td><td class="text-end text-danger" id="ps_health_ins"></td></tr>
                   <tr><td>고용보험</td><td class="text-end text-danger" id="ps_employ_ins"></td></tr>
@@ -306,15 +309,14 @@
               </div>
             </div>
           </div>
-          <div class="mt-3 p-3 text-center border border-2 border-primary rounded">
-            <div class="text-muted small mb-1">실 수 령 액</div>
-            <div class="fw-bold fs-3 text-primary" id="ps_net_pay"></div>
+          <div class="mt-3 p-3 text-center"
+               style="border:2px solid #0d1b2a;border-radius:8px;background:linear-gradient(135deg,#0d1b2a 0%,#162236 100%)">
+            <div class="small mb-1" style="color:rgba(228,201,126,.7)">실 수 령 액</div>
+            <div class="fw-bold fs-2" style="color:#e4c97e" id="ps_net_pay"></div>
           </div>
-          {% if rows %}
           <div class="text-center mt-3 text-muted small">
-            발급일: {{ now.strftime('%Y년 %m월 %d일') if now else '' }}
+            발급일: {{ now.strftime('%Y년 %m월 %d일') }}
           </div>
-          {% endif %}
         </div>
       </div>
     </div>
@@ -323,112 +325,140 @@
 {% endblock %}
 {% block scripts %}
 <script>
-function fmt(n) { return parseInt(n||0).toLocaleString('ko-KR') + '원'; }
+const ALLOWANCE_TYPES = ['식대','교통비','가족수당','직책수당','자격수당','야근수당','주휴수당','출장수당','기타수당'];
 
-function fillBase(sel) {
-  const opt = sel.options[sel.selectedIndex];
-  document.getElementById('f_base').value = opt.dataset.base || 0;
-  updateNetPreview();
+function addAllowanceRow(name, amount) {
+  const list = document.getElementById('allowanceList');
+  if (!list) return;
+  name = name || ALLOWANCE_TYPES[0];
+  amount = amount || 0;
+  const div = document.createElement('div');
+  div.className = 'allowance-row';
+  div.innerHTML = `
+    <select name="allowance_name[]" class="form-select form-select-sm" onchange="updateNetPreview()">
+      ${ALLOWANCE_TYPES.map(t => `<option${t===name?' selected':''}>${t}</option>`).join('')}
+    </select>
+    <input name="allowance_amount[]" type="number" class="form-control form-control-sm"
+           value="${amount}" placeholder="금액" oninput="updateNetPreview()">
+    <button type="button" class="btn btn-outline-danger btn-sm"
+            onclick="this.parentElement.remove();updateNetPreview()">
+      <i class="fa-solid fa-times"></i>
+    </button>`;
+  list.appendChild(div);
+}
+
+function getAllowanceTotal() {
+  let t = 0;
+  document.querySelectorAll('[name="allowance_amount[]"]').forEach(el => { t += parseInt(el.value||0); });
+  return t;
 }
 
 function updateNetPreview() {
-  const g = id => parseInt(document.getElementById(id).value||0);
-  const net = g('f_base')+g('f_overtime')+g('f_bonus')+g('f_allowance')
-             -g('f_income_tax')-g('f_health_ins')-g('f_employ_ins')-g('f_pension');
-  document.getElementById('netPreview').textContent = net.toLocaleString('ko-KR');
+  const g = id => parseInt(document.getElementById(id)?.value || 0);
+  const net = g('f_base') + g('f_overtime') + g('f_bonus') + getAllowanceTotal()
+            - g('f_income_tax') - g('f_health_ins') - g('f_employ_ins') - g('f_pension');
+  const el = document.getElementById('netPreview');
+  if (el) el.textContent = net.toLocaleString('ko-KR');
 }
 
-// 2025년 4대보험 요율
+function fillBase(sel) {
+  const opt = sel.options[sel.selectedIndex];
+  const el = document.getElementById('f_base');
+  if (el) { el.value = opt.dataset.base || 0; updateNetPreview(); }
+}
+
 function autoCalcInsurance() {
-  const base      = parseInt(document.getElementById('f_base').value||0);
-  const overtime  = parseInt(document.getElementById('f_overtime').value||0);
-  const allowance = parseInt(document.getElementById('f_allowance').value||0);
-  const taxable   = base + overtime + allowance;
-
-  // 국민연금 4.5% — 1,000원 미만 절사
-  const pension = Math.floor(taxable * 0.045 / 1000) * 1000;
-
-  // 건강보험 3.545% — 10원 미만 절사
-  const health = Math.floor(taxable * 0.03545 / 10) * 10;
-
-  // 장기요양 건강보험료의 12.95% — 10원 미만 절사
+  const base = parseInt(document.getElementById('f_base').value||0);
+  const ot   = parseInt(document.getElementById('f_overtime').value||0);
+  const all  = getAllowanceTotal();
+  const tax  = base + ot + all;
+  const pension  = Math.floor(tax * 0.045 / 1000) * 1000;
+  const health   = Math.floor(tax * 0.03545 / 10) * 10;
   const longterm = Math.floor(health * 0.1295 / 10) * 10;
-
-  // 고용보험 0.9% — 10원 미만 절사
-  const employ = Math.floor(taxable * 0.009 / 10) * 10;
-
-  // 소득세 + 지방소득세 (근사값, 부양가족 1인 기준)
-  const incomeTax = Math.round(calcIncomeTax(taxable) * 1.1 / 100) * 100;
-
-  document.getElementById('f_pension').value     = pension;
-  document.getElementById('f_health_ins').value  = health + longterm;
-  document.getElementById('f_employ_ins').value  = employ;
-  document.getElementById('f_income_tax').value  = incomeTax;
+  const employ   = Math.floor(tax * 0.009 / 10) * 10;
+  const income   = Math.round(calcIncomeTax(tax) * 1.1 / 100) * 100;
+  document.getElementById('f_pension').value    = pension;
+  document.getElementById('f_health_ins').value = health + longterm;
+  document.getElementById('f_employ_ins').value = employ;
+  document.getElementById('f_income_tax').value = income;
   updateNetPreview();
 }
 
 function calcIncomeTax(monthly) {
-  // 근로소득세 근사값 (2025년, 부양가족 1인 기준)
-  // 실제 세액은 국세청 간이세액표를 확인하세요
-  const annual = monthly * 12;
-  let earned;
-  if (annual <= 5e6)        earned = annual * 0.70;
-  else if (annual <= 15e6)  earned = 3.5e6  + (annual - 5e6)  * 0.40;
-  else if (annual <= 45e6)  earned = 7.5e6  + (annual - 15e6) * 0.15;
-  else if (annual <= 1e8)   earned = 12e6   + (annual - 45e6) * 0.05;
-  else                      earned = 14.75e6;
-
-  const taxable = Math.max(0, annual - earned - 1.5e6);
+  const a = monthly * 12;
+  let e;
+  if (a <= 5e6)       e = a * 0.70;
+  else if (a <= 15e6) e = 3.5e6  + (a - 5e6)  * 0.40;
+  else if (a <= 45e6) e = 7.5e6  + (a - 15e6) * 0.15;
+  else if (a <= 1e8)  e = 12e6   + (a - 45e6) * 0.05;
+  else                e = 14.75e6;
+  const taxable = Math.max(0, a - e - 1.5e6);
   let tax;
   if (taxable <= 14e6)       tax = taxable * 0.06;
   else if (taxable <= 5e7)   tax = 8.4e5   + (taxable - 14e6) * 0.15;
   else if (taxable <= 8.8e7) tax = 6.24e6  + (taxable - 5e7)  * 0.24;
   else if (taxable <= 1.5e8) tax = 1.536e7 + (taxable - 8.8e7)* 0.35;
   else                       tax = 3.706e7 + (taxable - 1.5e8) * 0.38;
-
   let credit = tax <= 1.3e5 ? tax * 0.55 : 7.15e4 + (tax - 1.3e5) * 0.30;
   credit = Math.min(credit, 740000);
   return Math.max(0, Math.round((tax - credit) / 12 / 100) * 100);
 }
 
-// 임금명세서
+function fmt(n) { return parseInt(n||0).toLocaleString('ko-KR') + '원'; }
+
 function showPayslip(sid) {
-  fetch('/salary/' + sid + '/json').then(r=>r.json()).then(d=>{
+  fetch('/salary/' + sid + '/json').then(r => r.json()).then(d => {
     const gross = d.base + d.overtime_pay + d.bonus + d.allowance;
-    const deduction = d.income_tax + d.health_ins + d.employ_ins + d.pension;
-    document.getElementById('ps_period').textContent = d.year + '년 ' + d.month + '월 귀속';
-    document.getElementById('ps_co_name').textContent  = d.co_name || '-';
-    document.getElementById('ps_biz_no').textContent   = d.biz_no  || '-';
-    document.getElementById('ps_address').textContent  = d.address || '-';
-    document.getElementById('ps_emp_name').textContent = d.emp_name;
-    document.getElementById('ps_dept_pos').textContent = [d.dept, d.position].filter(Boolean).join(' / ') || '-';
-    document.getElementById('ps_emp_no').textContent   = d.emp_no || '-';
-    document.getElementById('ps_base').textContent        = fmt(d.base);
-    document.getElementById('ps_overtime_pay').textContent= fmt(d.overtime_pay);
-    document.getElementById('ps_bonus').textContent       = fmt(d.bonus);
-    document.getElementById('ps_allowance').textContent   = fmt(d.allowance);
-    document.getElementById('ps_gross').textContent       = fmt(gross);
-    document.getElementById('ps_income_tax').textContent  = fmt(d.income_tax);
-    document.getElementById('ps_health_ins').textContent  = fmt(d.health_ins);
-    document.getElementById('ps_employ_ins').textContent  = fmt(d.employ_ins);
-    document.getElementById('ps_pension').textContent     = fmt(d.pension);
-    document.getElementById('ps_deduction').textContent   = fmt(deduction);
-    document.getElementById('ps_net_pay').textContent     = parseInt(d.net_pay).toLocaleString('ko-KR') + '원';
+    const ded   = d.income_tax + d.health_ins + d.employ_ins + d.pension;
+    document.getElementById('ps_period').textContent    = d.year + '년 ' + d.month + '월 귀속';
+    document.getElementById('ps_ym').textContent        = d.year + '년 ' + d.month + '월';
+    document.getElementById('ps_co_name').textContent   = d.co_name  || '-';
+    document.getElementById('ps_ceo').textContent       = d.ceo      || '-';
+    document.getElementById('ps_biz_no').textContent    = d.biz_no   || '-';
+    document.getElementById('ps_address').textContent   = d.address  || '-';
+    document.getElementById('ps_emp_name').textContent  = d.emp_name || '-';
+    document.getElementById('ps_dept_pos').textContent  = [d.dept, d.position].filter(Boolean).join(' / ') || '-';
+    document.getElementById('ps_emp_no').textContent    = d.emp_no   || '-';
+    document.getElementById('ps_work_days').textContent = d.work_days || '-';
+    document.getElementById('ps_total_hours').textContent = d.total_hours ? d.total_hours.toFixed(1) : '-';
+    const otH = d.total_hours ? Math.max(0, d.total_hours - 8).toFixed(1) : '-';
+    document.getElementById('ps_ot_hours').textContent  = otH;
+    if (d.overtime_pay > 0 && d.total_hours) {
+      const rate = Math.round(d.base / 209);
+      document.getElementById('ps_ot_calc').textContent =
+        '(OT ' + otH + 'h × 통상시급 ' + rate.toLocaleString() + '원 × 1.5)';
+    } else { document.getElementById('ps_ot_calc').textContent = ''; }
+    document.getElementById('ps_base').textContent         = fmt(d.base);
+    document.getElementById('ps_overtime_pay').textContent = fmt(d.overtime_pay);
+    document.getElementById('ps_bonus').textContent        = fmt(d.bonus);
+    const aRows = document.getElementById('ps_allowance_rows');
+    aRows.innerHTML = '';
+    if (d.allowance_items && d.allowance_items.length) {
+      d.allowance_items.forEach(a => {
+        aRows.innerHTML += '<tr><td>' + a.name + '</td><td class="text-end">' + fmt(a.amount) + '</td></tr>';
+      });
+    } else if (d.allowance) {
+      aRows.innerHTML = '<tr><td>제수당</td><td class="text-end">' + fmt(d.allowance) + '</td></tr>';
+    }
+    document.getElementById('ps_gross').textContent      = fmt(gross);
+    document.getElementById('ps_income_tax').textContent = fmt(d.income_tax);
+    document.getElementById('ps_health_ins').textContent = fmt(d.health_ins);
+    document.getElementById('ps_employ_ins').textContent = fmt(d.employ_ins);
+    document.getElementById('ps_pension').textContent    = fmt(d.pension);
+    document.getElementById('ps_deduction').textContent  = fmt(ded);
+    document.getElementById('ps_net_pay').textContent    = parseInt(d.net_pay).toLocaleString('ko-KR') + '원';
     new bootstrap.Modal(document.getElementById('payslipModal')).show();
   });
 }
 
 function printPayslip() {
-  const content = document.getElementById('payslipPrint').innerHTML;
+  const c = document.getElementById('payslipPrint').innerHTML;
   const w = window.open('', '_blank');
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
-    <title>임금명세서</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
-    <style>body{padding:24px;font-family:'Malgun Gothic',sans-serif}
-    @media print{@page{margin:15mm}}</style>
-    </head><body>${content}</body></html>`);
-  w.document.close();
-  w.onload = () => { w.print(); w.close(); };
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>임금명세서</title>' +
+    '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">' +
+    '<style>body{padding:24px;font-family:"Malgun Gothic",sans-serif}@media print{@page{margin:15mm}}</style>' +
+    '</head><body>' + c + '</body></html>');
+  w.document.close(); w.onload = () => { w.print(); w.close(); };
 }
 </script>
 {% endblock %}

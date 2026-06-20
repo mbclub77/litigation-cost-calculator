@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+{% block title %}근태 캘린더{% endblock %}
+{% block content %}
+
+{% set month_names = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'] %}
+{% set week_days = ['월','화','수','목','금','토','일'] %}
+
+<div class="d-flex align-items-center mb-4 flex-wrap gap-2">
+  <h5 class="fw-bold mb-0"><i class="fa-solid fa-calendar-check me-2 text-primary"></i>근태 캘린더</h5>
+
+  <!-- 필터 (관리자/자문사만) -->
+  {% if not current_user.is_employee %}
+  <form class="d-flex gap-2 ms-auto flex-wrap align-items-center" id="calFilter">
+    {% if filter_depts %}
+    <select name="dept" class="form-select form-select-sm" style="width:120px" onchange="applyFilter()">
+      <option value="">전체 부서</option>
+      {% for d in filter_depts %}
+      <option value="{{ d }}" {% if dept_f==d %}selected{% endif %}>{{ d }}</option>
+      {% endfor %}
+    </select>
+    {% endif %}
+    {% if filter_emps %}
+    <select name="emp_id" class="form-select form-select-sm" style="width:130px" onchange="applyFilter()">
+      <option value="">전체 직원</option>
+      {% for e in filter_emps %}
+      <option value="{{ e.id }}" {% if emp_f==e.id|string %}selected{% endif %}>{{ e.name }}</option>
+      {% endfor %}
+    </select>
+    {% endif %}
+    <input type="hidden" name="year" value="{{ year }}">
+    <input type="hidden" name="month" value="{{ month }}">
+  </form>
+  {% endif %}
+</div>
+
+<!-- 월 네비게이션 -->
+<div class="calendar-nav d-flex align-items-center justify-content-between mb-3">
+  <a href="?year={{ prev_year }}&month={{ prev_month }}{% if dept_f %}&dept={{ dept_f }}{% endif %}{% if emp_f %}&emp_id={{ emp_f }}{% endif %}"
+     class="btn btn-outline-secondary btn-sm">
+    <i class="fa-solid fa-chevron-left"></i>
+  </a>
+  <h4 class="mb-0 fw-bold" style="font-family:'Noto Serif KR',serif;color:#0d1b2a">
+    {{ year }}년 {{ month_names[month-1] }}
+  </h4>
+  <a href="?year={{ next_year }}&month={{ next_month }}{% if dept_f %}&dept={{ dept_f }}{% endif %}{% if emp_f %}&emp_id={{ emp_f }}{% endif %}"
+     class="btn btn-outline-secondary btn-sm">
+    <i class="fa-solid fa-chevron-right"></i>
+  </a>
+</div>
+
+<!-- 범례 -->
+<div class="d-flex gap-3 mb-3 flex-wrap">
+  <span class="cal-legend"><span class="legend-dot" style="background:#2d7a4f"></span>출근</span>
+  <span class="cal-legend"><span class="legend-dot" style="background:#d4930a"></span>연차/휴가</span>
+  <span class="cal-legend"><span class="legend-dot" style="background:#0369a1"></span>연장근무</span>
+</div>
+
+<!-- 달력 그리드 -->
+<div class="cal-grid">
+  <!-- 요일 헤더 -->
+  {% for wd in week_days %}
+  <div class="cal-header {% if loop.index0 == 5 %}cal-sat{% elif loop.index0 == 6 %}cal-sun{% endif %}">
+    {{ wd }}
+  </div>
+  {% endfor %}
+
+  <!-- 빈 칸 (첫째 날 이전) -->
+  {% for i in range(start_weekday) %}
+  <div class="cal-cell cal-empty"></div>
+  {% endfor %}
+
+  <!-- 날짜 셀 -->
+  {% for day in range(1, total_days + 1) %}
+  {% set date_str = '%d-%02d-%02d'|format(year, month, day) %}
+  {% set weekday = (start_weekday + day - 1) % 7 %}
+  {% set is_today = date_str == today_str %}
+  {% set atts = att_by_date.get(date_str, []) %}
+  {% set leaves = leave_by_date.get(date_str, []) %}
+
+  <div class="cal-cell {% if is_today %}cal-today{% endif %}
+       {% if weekday == 5 %}cal-sat{% elif weekday == 6 %}cal-sun{% endif %}
+       {% if atts or leaves %}cal-has-data{% endif %}">
+
+    <div class="cal-day-num {% if is_today %}cal-today-num{% endif %}">{{ day }}</div>
+
+    <!-- 출근 기록 -->
+    {% for a in atts[:3] %}
+    <div class="cal-chip cal-chip-att" title="{{ a.emp_name }} {{ a.check_in or '' }}~{{ a.check_out or '' }}">
+      <i class="fa-solid fa-user-clock" style="font-size:.6rem"></i>
+      <span>{{ a.emp_name[:4] }}</span>
+      {% if a.work_hours %}<small>{{ '%.0f'|format(a.work_hours) }}h</small>{% endif %}
+      {% if a.overtime_hours > 0 %}
+      <span class="cal-chip-ot">+{{ '%.0f'|format(a.overtime_hours) }}</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+    {% if atts|length > 3 %}
+    <div class="cal-chip-more">+{{ atts|length - 3 }}명</div>
+    {% endif %}
+
+    <!-- 연차/휴가 기록 -->
+    {% for l in leaves[:2] %}
+    <div class="cal-chip cal-chip-leave" title="{{ l.emp_name }} {{ l.leave_type }}">
+      <i class="fa-solid fa-umbrella-beach" style="font-size:.6rem"></i>
+      <span>{{ l.emp_name[:4] }}</span>
+      <small>{{ l.leave_type }}</small>
+    </div>
+    {% endfor %}
+    {% if leaves|length > 2 %}
+    <div class="cal-chip-more">+{{ leaves|length - 2 }}건</div>
+    {% endif %}
+  </div>
+  {% endfor %}
+
+  <!-- 마지막 주 빈 칸 -->
+  {% set end_weekday = (start_weekday + total_days - 1) % 7 %}
+  {% if end_weekday != 6 %}
+  {% for i in range(6 - end_weekday) %}
+  <div class="cal-cell cal-empty"></div>
+  {% endfor %}
+  {% endif %}
+</div>
+
+<!-- 월간 요약 -->
+{% set total_att = att_by_date|length %}
+{% set total_h = namespace(v=0) %}
+{% for day_list in att_by_date.values() %}
+  {% for a in day_list %}{% set total_h.v = total_h.v + (a.work_hours or 0) %}{% endfor %}
+{% endfor %}
+
+{% if total_att > 0 or leave_by_date %}
+<div class="row g-3 mt-2">
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm text-center py-2">
+      <div class="text-muted small">출근 기록 일수</div>
+      <div class="fw-bold fs-5 text-success">{{ total_att }}일</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm text-center py-2">
+      <div class="text-muted small">총 근무시간</div>
+      <div class="fw-bold fs-5 text-primary">{{ '%.1f'|format(total_h.v) }}h</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm text-center py-2">
+      <div class="text-muted small">연차 사용일</div>
+      <div class="fw-bold fs-5 text-warning">{{ leave_by_date|length }}일</div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+{% block scripts %}
+<script>
+function applyFilter() {
+  const f = document.getElementById('calFilter');
+  const dept = f.querySelector('[name=dept]')?.value || '';
+  const emp  = f.querySelector('[name=emp_id]')?.value || '';
+  const year = f.querySelector('[name=year]').value;
+  const month= f.querySelector('[name=month]').value;
+  let url = `?year=${year}&month=${month}`;
+  if (dept) url += `&dept=${encodeURIComponent(dept)}`;
+  if (emp)  url += `&emp_id=${emp}`;
+  window.location.href = url;
+}
+</script>
+{% endblock %}
