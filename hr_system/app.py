@@ -12,9 +12,22 @@ logging.basicConfig(
 )
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
+
+# templates 폴더가 있으면 그걸 쓰고, 없으면 현재 폴더에서 직접 찾음
+def _find_folder(name, marker_file):
+    sub = os.path.join(_BASE, name)
+    if os.path.isfile(os.path.join(sub, marker_file)):
+        return sub
+    if os.path.isfile(os.path.join(_BASE, marker_file)):
+        return _BASE
+    return sub  # 기본값
+
+_tmpl_dir   = _find_folder('templates', 'dashboard.html')
+_static_dir = _find_folder('static',    'style.css')
+
 app = Flask(__name__,
-            template_folder=os.path.join(_BASE, 'templates'),
-            static_folder=os.path.join(_BASE, 'static'))
+            template_folder=_tmpl_dir,
+            static_folder=_static_dir)
 app.secret_key = 'hr-system-secret-2024'
 
 @app.errorhandler(Exception)
