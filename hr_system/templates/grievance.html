@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+{% block title %}고충관리{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+  <h5 class="fw-bold mb-0">
+    <i class="fa-solid fa-handshake me-2" style="color:var(--gold)"></i>고충관리
+  </h5>
+  <button class="ms-auto btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#grievModal">
+    <i class="fa-solid fa-plus me-1"></i>고충신청
+  </button>
+</div>
+
+<div class="alert alert-light border mb-3 py-2 small">
+  <i class="fa-solid fa-shield-halved me-1 text-primary"></i>
+  익명 신청 시 신청자 성명이 관리자에게도 공개되지 않습니다. 성희롱·직장 내 괴롭힘 신고는 익명으로 제출하세요.
+</div>
+
+<div class="stat-card">
+  <div class="card-header py-3 d-flex align-items-center">
+    <span class="fw-semibold"><i class="fa-solid fa-comment-dots me-2"></i>고충 현황</span>
+    <span class="ms-auto text-muted small">총 {{ rows|length }}건</span>
+  </div>
+  <div class="card-body p-0">
+    <table class="table mb-0">
+      <thead>
+        <tr>
+          <th>신청자</th><th>분류</th><th>제목</th><th>내용</th>
+          <th class="text-center">상태</th><th>처리 답변</th><th>접수일</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for r in rows %}
+      <tr>
+        <td class="fw-semibold">
+          {% if r.is_anonymous %}
+          <span class="text-muted">익명</span>
+          {% else %}
+          {{ r.emp_name }}
+          {% endif %}
+        </td>
+        <td><span class="badge bg-secondary">{{ r.category }}</span></td>
+        <td class="fw-semibold">{{ r.title }}</td>
+        <td class="text-muted small">{{ (r.content or '')[:40] }}{% if r.content and r.content|length > 40 %}…{% endif %}</td>
+        <td class="text-center"><span class="badge badge-{{ r.status }}">{{ r.status }}</span></td>
+        <td class="text-muted small">{{ (r.response or '')[:40] }}{% if r.response and r.response|length > 40 %}…{% endif %}</td>
+        <td class="text-muted small">{{ r.created_at[:10] }}</td>
+        <td>
+          <div class="d-flex gap-1">
+            {% if not current_user.is_employee %}
+            <button class="btn btn-outline-primary btn-sm"
+                    onclick="openRespond({{ r.id }}, '{{ (r.response or '')|e }}', '{{ r.status }}')">
+              <i class="fa-solid fa-reply"></i>
+            </button>
+            {% endif %}
+            {% if current_user.is_admin %}
+            <form method="post" action="{{ url_for('grievance_delete', gid=r.id) }}"
+                  onsubmit="return confirm('삭제?')">
+              <button class="btn btn-outline-danger btn-sm"><i class="fa-solid fa-trash"></i></button>
+            </form>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" class="text-center text-muted py-5">고충신청 내역이 없습니다.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- 고충신청 모달 -->
+<div class="modal fade" id="grievModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title"><i class="fa-solid fa-handshake me-2"></i>고충상담 신청</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{{ url_for('grievance_add') }}">
+        <div class="modal-body">
+          {% if not current_user.is_employee %}
+          <div class="mb-3">
+            <label class="form-label fw-semibold">신청인 <span class="text-danger">*</span></label>
+            <select name="employee_id" class="form-select" required>
+              <option value="">선택하세요</option>
+              {% for e in emps %}
+              <option value="{{ e.id }}">{{ e.co_name }} — {{ e.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          {% endif %}
+          <div class="mb-3">
+            <label class="form-label fw-semibold">고충 유형 <span class="text-danger">*</span></label>
+            <select name="category" class="form-select">
+              <optgroup label="근무환경">
+                <option>일반고충</option><option>업무과부하</option><option>근무환경개선</option>
+              </optgroup>
+              <optgroup label="인간관계">
+                <option>직장 내 괴롭힘</option><option>성희롱·성폭력</option>
+                <option>차별·불평등</option>
+              </optgroup>
+              <optgroup label="처우/복지">
+                <option>급여·수당</option><option>복리후생</option><option>승진·인사</option>
+              </optgroup>
+              <option>기타</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">제목 <span class="text-danger">*</span></label>
+            <input name="title" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">내용</label>
+            <textarea name="content" class="form-control" rows="5"
+                      placeholder="고충 내용을 구체적으로 작성해 주세요."></textarea>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="is_anonymous" id="anon1">
+            <label class="form-check-label" for="anon1">
+              <strong>익명으로 신청</strong> <span class="text-muted small">(신청자 정보 비공개)</span>
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">취소</button>
+          <button type="submit" class="btn btn-primary"><i class="fa-solid fa-paper-plane me-1"></i>신청</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- 답변 모달 -->
+<div class="modal fade" id="respondModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title"><i class="fa-solid fa-reply me-2"></i>고충 처리 답변</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" id="respondForm">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">처리 상태</label>
+            <select name="status" class="form-select" id="respondStatus">
+              <option value="접수">접수</option>
+              <option value="처리중">처리중</option>
+              <option value="완료">완료</option>
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label fw-semibold">답변 내용</label>
+            <textarea name="response" class="form-control" rows="5" id="respondText"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">취소</button>
+          <button type="submit" class="btn btn-primary">저장</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function openRespond(gid, response, status) {
+  document.getElementById('respondForm').action = '/grievance/' + gid + '/respond';
+  document.getElementById('respondText').value = response;
+  document.getElementById('respondStatus').value = status;
+  new bootstrap.Modal(document.getElementById('respondModal')).show();
+}
+</script>
+{% endblock %}

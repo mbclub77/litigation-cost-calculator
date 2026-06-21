@@ -142,6 +142,76 @@ def init_db():
         memo TEXT,
         created_at TEXT DEFAULT (date('now','localtime'))
     );
+    CREATE TABLE IF NOT EXISTS notices (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        company_id INTEGER REFERENCES companies(id),
+        title TEXT NOT NULL,
+        content TEXT,
+        category TEXT DEFAULT '일반',
+        is_pinned INTEGER DEFAULT 0,
+        created_by TEXT,
+        created_at TEXT DEFAULT (date('now','localtime'))
+    );
+    CREATE TABLE IF NOT EXISTS trip_requests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        employee_id INTEGER NOT NULL REFERENCES employees(id),
+        destination TEXT NOT NULL,
+        purpose TEXT,
+        start_date TEXT NOT NULL,
+        end_date TEXT NOT NULL,
+        days INTEGER DEFAULT 1,
+        transport TEXT DEFAULT '자가용',
+        budget INTEGER DEFAULT 0,
+        status TEXT DEFAULT '대기',
+        memo TEXT,
+        created_at TEXT DEFAULT (date('now','localtime'))
+    );
+    CREATE TABLE IF NOT EXISTS welfare_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        employee_id INTEGER NOT NULL REFERENCES employees(id),
+        event_type TEXT NOT NULL,
+        event_date TEXT NOT NULL,
+        amount INTEGER DEFAULT 0,
+        status TEXT DEFAULT '대기',
+        memo TEXT,
+        created_at TEXT DEFAULT (date('now','localtime'))
+    );
+    CREATE TABLE IF NOT EXISTS education_requests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        employee_id INTEGER NOT NULL REFERENCES employees(id),
+        title TEXT NOT NULL,
+        category TEXT DEFAULT '직무교육',
+        institution TEXT,
+        start_date TEXT,
+        end_date TEXT,
+        cost INTEGER DEFAULT 0,
+        status TEXT DEFAULT '대기',
+        memo TEXT,
+        created_at TEXT DEFAULT (date('now','localtime'))
+    );
+    CREATE TABLE IF NOT EXISTS performance_goals (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        employee_id INTEGER NOT NULL REFERENCES employees(id),
+        year INTEGER NOT NULL,
+        goal TEXT NOT NULL,
+        category TEXT DEFAULT '업무',
+        weight INTEGER DEFAULT 100,
+        score INTEGER DEFAULT 0,
+        status TEXT DEFAULT '진행중',
+        memo TEXT,
+        created_at TEXT DEFAULT (date('now','localtime'))
+    );
+    CREATE TABLE IF NOT EXISTS grievance_requests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        employee_id INTEGER NOT NULL REFERENCES employees(id),
+        category TEXT DEFAULT '일반고충',
+        title TEXT NOT NULL,
+        content TEXT,
+        is_anonymous INTEGER DEFAULT 0,
+        status TEXT DEFAULT '접수',
+        response TEXT,
+        created_at TEXT DEFAULT (date('now','localtime'))
+    );
     """)
     conn.commit()
 

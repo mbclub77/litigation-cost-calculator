@@ -342,6 +342,19 @@ def dashboard():
             (eid,)).fetchall()
 
         emp_info = db.execute("SELECT * FROM employees WHERE id=?", (eid,)).fetchone()
+
+        # 이번달 출퇴근 목록 (캘린더용)
+        month_atts_list = db.execute(
+            "SELECT work_date, check_in, check_out, work_hours FROM attendance WHERE employee_id=? AND work_date LIKE ? ORDER BY work_date",
+            (eid, this_month + '%')).fetchall()
+
+        # 공지사항
+        cid2 = emp_info['company_id'] if emp_info else None
+        nq = "SELECT * FROM notices WHERE 1=1"
+        np_ = []
+        if cid2:
+            nq += " AND (company_id=? OR company_id IS NULL)"; np_ = [cid2]
+        notice_rows = db.execute(nq + " ORDER BY is_pinned DESC, created_at DESC LIMIT 5", np_).fetchall()
         db.close()
 
         return render_template('dashboard.html',
@@ -353,6 +366,8 @@ def dashboard():
             leave_bal=leave_bal,
             last_salaries=last_salaries,
             emp_info=emp_info,
+            month_atts_list=month_atts_list,
+            notice_rows=notice_rows,
             companies=all_companies(), sel=selected_company())
 
     # 관리자/기업담당자 대시보드
@@ -381,11 +396,27 @@ def dashboard():
         (" WHERE co.id=?" if cid else "") +
         " GROUP BY co.id ORDER BY cnt DESC",
         ([cid] if cid else [])).fetchall()
+
+    # 공지사항
+    nq = "SELECT * FROM notices WHERE 1=1"
+    np_ = []
+    if cid:
+        nq += " AND (company_id=? OR company_id IS NULL)"; np_ = [cid]
+    notice_rows = db.execute(nq + " ORDER BY is_pinned DESC, created_at DESC LIMIT 5", np_).fetchall()
+
+    # 이번달 출퇴근 요약
+    ym = date.today().strftime('%Y-%m')
+    att_summary = db.execute(
+        "SELECT COUNT(DISTINCT employee_id) as emp_cnt, COUNT(*) as att_cnt "
+        "FROM attendance WHERE work_date LIKE ?" + (" AND employee_id IN (SELECT id FROM employees WHERE company_id=?)" if cid else ""),
+        ([ym+'%', cid] if cid else [ym+'%'])).fetchone()
+
     db.close()
     return render_template('dashboard.html',
         is_employee_view=False,
         total_co=total_co, total_emp=total_emp,
         consult_cnt=consult_cnt, recent=recent, co_stats=co_stats,
+        notice_rows=notice_rows, att_summary=att_summary,
         companies=all_companies(), sel=selected_company())
 
 # ── 회사 관리 ─────────────────────────────────────────────────────────────────
@@ -1398,6 +1429,333 @@ def calendar_view():
         prev_year=prev_year, prev_month=prev_month,
         next_year=next_year, next_month=next_month,
         companies=all_companies(), sel=selected_company())
+
+# ── 공지사항 ──────────────────────────────────────────────────────────────────
+@app.route('/notices')
+@login_required
+def notices():
+    cid = _cid_filter()
+    db = get_db()
+    q = "SELECT n.*, c.name as co_name FROM notices n LEFT JOIN companies c ON n.company_id=c.id WHERE 1=1"
+    p = []
+    if cid:
+        q += " AND (n.company_id=? OR n.company_id IS NULL)"
+        p = [cid]
+    rows = db.execute(q + " ORDER BY n.is_pinned DESC, n.created_at DESC LIMIT 50", p).fetchall()
+    db.close()
+    return render_template('notices.html', rows=rows, companies=all_companies(), sel=selected_company())
+
+@app.route('/notices/add', methods=['POST'])
+@login_required
+def notice_add():
+    if not (current_user.is_admin or current_user.is_company):
+        return redirect(url_for('notices'))
+    f = request.form
+    cid = _cid_filter()
+    db = get_db()
+    db.execute(
+        "INSERT INTO notices(company_id,title,content,category,is_pinned,created_by) VALUES(?,?,?,?,?,?)",
+        (cid or f.get('company_id') or None, f['title'], f.get('content'),
+         f.get('category','일반'), 1 if f.get('is_pinned') else 0, current_user.name))
+    db.commit(); db.close()
+    flash('공지사항이 등록되었습니다.')
+    return redirect(url_for('notices'))
+
+@app.route('/notices/<int:nid>/delete', methods=['POST'])
+@login_required
+def notice_delete(nid):
+    if not current_user.is_admin:
+        return redirect(url_for('notices'))
+    db = get_db()
+    db.execute("DELETE FROM notices WHERE id=?", (nid,))
+    db.commit(); db.close()
+    return redirect(url_for('notices'))
+
+# ── 출장관리 ──────────────────────────────────────────────────────────────────
+@app.route('/trip')
+@login_required
+def trip():
+    cid = _cid_filter()
+    eid = _eid_filter()
+    db = get_db()
+    emps_q = "SELECT e.id, e.name, e.dept, c.name as co_name FROM employees e JOIN companies c ON e.company_id=c.id WHERE e.status='재직'"
+    emps_p = []
+    if cid:
+        emps_q += " AND e.company_id=?"; emps_p = [cid]
+    emps = db.execute(emps_q + " ORDER BY c.name, e.name", emps_p).fetchall()
+
+    q = ("SELECT t.*, e.name as emp_name, c.name as co_name "
+         "FROM trip_requests t JOIN employees e ON t.employee_id=e.id "
+         "JOIN companies c ON e.company_id=c.id WHERE 1=1")
+    p = []
+    if eid:
+        q += " AND t.employee_id=?"; p = [eid]
+    elif cid:
+        q += " AND e.company_id=?"; p = [cid]
+    rows = db.execute(q + " ORDER BY t.created_at DESC LIMIT 100", p).fetchall()
+    db.close()
+    return render_template('trip.html', rows=rows, emps=emps, companies=all_companies(), sel=selected_company())
+
+@app.route('/trip/add', methods=['POST'])
+@login_required
+def trip_add():
+    f = request.form
+    eid = f.get('employee_id') or (_eid_filter())
+    if not eid:
+        flash('직원을 선택하세요.'); return redirect(url_for('trip'))
+    start = f['start_date']; end = f['end_date']
+    try:
+        days = (date.fromisoformat(end) - date.fromisoformat(start)).days + 1
+    except Exception:
+        days = 1
+    db = get_db()
+    db.execute(
+        "INSERT INTO trip_requests(employee_id,destination,purpose,start_date,end_date,days,transport,budget,memo) VALUES(?,?,?,?,?,?,?,?,?)",
+        (eid, f['destination'], f.get('purpose'), start, end, days,
+         f.get('transport','자가용'), int(f.get('budget') or 0), f.get('memo')))
+    db.commit(); db.close()
+    flash('출장신청이 등록되었습니다.')
+    return redirect(url_for('trip'))
+
+@app.route('/trip/<int:tid>/status', methods=['POST'])
+@login_required
+def trip_status(tid):
+    status = request.form.get('status','승인')
+    db = get_db()
+    db.execute("UPDATE trip_requests SET status=? WHERE id=?", (status, tid))
+    db.commit(); db.close()
+    return redirect(url_for('trip'))
+
+@app.route('/trip/<int:tid>/delete', methods=['POST'])
+@login_required
+def trip_delete(tid):
+    db = get_db()
+    db.execute("DELETE FROM trip_requests WHERE id=?", (tid,))
+    db.commit(); db.close()
+    return redirect(url_for('trip'))
+
+# ── 복리후생 ──────────────────────────────────────────────────────────────────
+@app.route('/welfare')
+@login_required
+def welfare():
+    cid = _cid_filter()
+    eid = _eid_filter()
+    db = get_db()
+    emps_q = "SELECT e.id, e.name, e.dept, c.name as co_name FROM employees e JOIN companies c ON e.company_id=c.id WHERE e.status='재직'"
+    emps_p = []
+    if cid:
+        emps_q += " AND e.company_id=?"; emps_p = [cid]
+    emps = db.execute(emps_q + " ORDER BY c.name, e.name", emps_p).fetchall()
+
+    q = ("SELECT w.*, e.name as emp_name, c.name as co_name "
+         "FROM welfare_events w JOIN employees e ON w.employee_id=e.id "
+         "JOIN companies c ON e.company_id=c.id WHERE 1=1")
+    p = []
+    if eid:
+        q += " AND w.employee_id=?"; p = [eid]
+    elif cid:
+        q += " AND e.company_id=?"; p = [cid]
+    rows = db.execute(q + " ORDER BY w.created_at DESC LIMIT 100", p).fetchall()
+    db.close()
+    return render_template('welfare.html', rows=rows, emps=emps, companies=all_companies(), sel=selected_company())
+
+@app.route('/welfare/add', methods=['POST'])
+@login_required
+def welfare_add():
+    f = request.form
+    eid = f.get('employee_id') or _eid_filter()
+    if not eid:
+        flash('직원을 선택하세요.'); return redirect(url_for('welfare'))
+    db = get_db()
+    db.execute(
+        "INSERT INTO welfare_events(employee_id,event_type,event_date,amount,memo) VALUES(?,?,?,?,?)",
+        (eid, f['event_type'], f['event_date'], int(f.get('amount') or 0), f.get('memo')))
+    db.commit(); db.close()
+    flash('복리후생 내역이 등록되었습니다.')
+    return redirect(url_for('welfare'))
+
+@app.route('/welfare/<int:wid>/delete', methods=['POST'])
+@login_required
+def welfare_delete(wid):
+    db = get_db()
+    db.execute("DELETE FROM welfare_events WHERE id=?", (wid,))
+    db.commit(); db.close()
+    return redirect(url_for('welfare'))
+
+# ── 교육관리 ──────────────────────────────────────────────────────────────────
+@app.route('/education')
+@login_required
+def education():
+    cid = _cid_filter()
+    eid = _eid_filter()
+    db = get_db()
+    emps_q = "SELECT e.id, e.name, e.dept, c.name as co_name FROM employees e JOIN companies c ON e.company_id=c.id WHERE e.status='재직'"
+    emps_p = []
+    if cid:
+        emps_q += " AND e.company_id=?"; emps_p = [cid]
+    emps = db.execute(emps_q + " ORDER BY c.name, e.name", emps_p).fetchall()
+
+    q = ("SELECT ed.*, e.name as emp_name, c.name as co_name "
+         "FROM education_requests ed JOIN employees e ON ed.employee_id=e.id "
+         "JOIN companies c ON e.company_id=c.id WHERE 1=1")
+    p = []
+    if eid:
+        q += " AND ed.employee_id=?"; p = [eid]
+    elif cid:
+        q += " AND e.company_id=?"; p = [cid]
+    rows = db.execute(q + " ORDER BY ed.created_at DESC LIMIT 100", p).fetchall()
+    db.close()
+    return render_template('education.html', rows=rows, emps=emps, companies=all_companies(), sel=selected_company())
+
+@app.route('/education/add', methods=['POST'])
+@login_required
+def education_add():
+    f = request.form
+    eid = f.get('employee_id') or _eid_filter()
+    if not eid:
+        flash('직원을 선택하세요.'); return redirect(url_for('education'))
+    db = get_db()
+    db.execute(
+        "INSERT INTO education_requests(employee_id,title,category,institution,start_date,end_date,cost,memo) VALUES(?,?,?,?,?,?,?,?)",
+        (eid, f['title'], f.get('category','직무교육'), f.get('institution'),
+         f.get('start_date'), f.get('end_date'), int(f.get('cost') or 0), f.get('memo')))
+    db.commit(); db.close()
+    flash('교육신청이 등록되었습니다.')
+    return redirect(url_for('education'))
+
+@app.route('/education/<int:eid2>/status', methods=['POST'])
+@login_required
+def education_status(eid2):
+    db = get_db()
+    db.execute("UPDATE education_requests SET status=? WHERE id=?", (request.form.get('status','승인'), eid2))
+    db.commit(); db.close()
+    return redirect(url_for('education'))
+
+@app.route('/education/<int:eid2>/delete', methods=['POST'])
+@login_required
+def education_delete(eid2):
+    db = get_db()
+    db.execute("DELETE FROM education_requests WHERE id=?", (eid2,))
+    db.commit(); db.close()
+    return redirect(url_for('education'))
+
+# ── 성과관리 ──────────────────────────────────────────────────────────────────
+@app.route('/performance')
+@login_required
+def performance():
+    cid = _cid_filter()
+    eid = _eid_filter()
+    year = int(request.args.get('year', date.today().year))
+    db = get_db()
+    emps_q = "SELECT e.id, e.name, e.dept, c.name as co_name FROM employees e JOIN companies c ON e.company_id=c.id WHERE e.status='재직'"
+    emps_p = []
+    if cid:
+        emps_q += " AND e.company_id=?"; emps_p = [cid]
+    emps = db.execute(emps_q + " ORDER BY c.name, e.name", emps_p).fetchall()
+
+    q = ("SELECT pg.*, e.name as emp_name, c.name as co_name "
+         "FROM performance_goals pg JOIN employees e ON pg.employee_id=e.id "
+         "JOIN companies c ON e.company_id=c.id WHERE pg.year=?")
+    p = [year]
+    if eid:
+        q += " AND pg.employee_id=?"; p.append(eid)
+    elif cid:
+        q += " AND e.company_id=?"; p.append(cid)
+    rows = db.execute(q + " ORDER BY e.name, pg.id", p).fetchall()
+    db.close()
+    return render_template('performance.html', rows=rows, emps=emps, year=year,
+        companies=all_companies(), sel=selected_company())
+
+@app.route('/performance/add', methods=['POST'])
+@login_required
+def performance_add():
+    f = request.form
+    eid = f.get('employee_id') or _eid_filter()
+    if not eid:
+        flash('직원을 선택하세요.'); return redirect(url_for('performance'))
+    db = get_db()
+    db.execute(
+        "INSERT INTO performance_goals(employee_id,year,goal,category,weight,memo) VALUES(?,?,?,?,?,?)",
+        (eid, f.get('year', date.today().year), f['goal'],
+         f.get('category','업무'), int(f.get('weight') or 100), f.get('memo')))
+    db.commit(); db.close()
+    flash('목표가 등록되었습니다.')
+    return redirect(url_for('performance'))
+
+@app.route('/performance/<int:pid>/score', methods=['POST'])
+@login_required
+def performance_score(pid):
+    db = get_db()
+    db.execute("UPDATE performance_goals SET score=?,status=? WHERE id=?",
+               (int(request.form.get('score') or 0), request.form.get('status','완료'), pid))
+    db.commit(); db.close()
+    return redirect(url_for('performance'))
+
+@app.route('/performance/<int:pid>/delete', methods=['POST'])
+@login_required
+def performance_delete(pid):
+    db = get_db()
+    db.execute("DELETE FROM performance_goals WHERE id=?", (pid,))
+    db.commit(); db.close()
+    return redirect(url_for('performance'))
+
+# ── 고충관리 ──────────────────────────────────────────────────────────────────
+@app.route('/grievance')
+@login_required
+def grievance():
+    cid = _cid_filter()
+    eid = _eid_filter()
+    db = get_db()
+    emps_q = "SELECT e.id, e.name, e.dept, c.name as co_name FROM employees e JOIN companies c ON e.company_id=c.id WHERE e.status='재직'"
+    emps_p = []
+    if cid:
+        emps_q += " AND e.company_id=?"; emps_p = [cid]
+    emps = db.execute(emps_q + " ORDER BY c.name, e.name", emps_p).fetchall()
+
+    q = ("SELECT gr.*, e.name as emp_name, c.name as co_name "
+         "FROM grievance_requests gr JOIN employees e ON gr.employee_id=e.id "
+         "JOIN companies c ON e.company_id=c.id WHERE 1=1")
+    p = []
+    if eid:
+        q += " AND gr.employee_id=?"; p = [eid]
+    elif cid:
+        q += " AND e.company_id=?"; p = [cid]
+    rows = db.execute(q + " ORDER BY gr.created_at DESC LIMIT 100", p).fetchall()
+    db.close()
+    return render_template('grievance.html', rows=rows, emps=emps, companies=all_companies(), sel=selected_company())
+
+@app.route('/grievance/add', methods=['POST'])
+@login_required
+def grievance_add():
+    f = request.form
+    eid = f.get('employee_id') or _eid_filter()
+    if not eid:
+        flash('직원을 선택하세요.'); return redirect(url_for('grievance'))
+    db = get_db()
+    db.execute(
+        "INSERT INTO grievance_requests(employee_id,category,title,content,is_anonymous) VALUES(?,?,?,?,?)",
+        (eid, f.get('category','일반고충'), f['title'], f.get('content'),
+         1 if f.get('is_anonymous') else 0))
+    db.commit(); db.close()
+    flash('고충신청이 접수되었습니다.')
+    return redirect(url_for('grievance'))
+
+@app.route('/grievance/<int:gid>/respond', methods=['POST'])
+@login_required
+def grievance_respond(gid):
+    db = get_db()
+    db.execute("UPDATE grievance_requests SET response=?,status=? WHERE id=?",
+               (request.form.get('response'), request.form.get('status','처리중'), gid))
+    db.commit(); db.close()
+    return redirect(url_for('grievance'))
+
+@app.route('/grievance/<int:gid>/delete', methods=['POST'])
+@login_required
+def grievance_delete(gid):
+    db = get_db()
+    db.execute("DELETE FROM grievance_requests WHERE id=?", (gid,))
+    db.commit(); db.close()
+    return redirect(url_for('grievance'))
 
 if __name__ == '__main__':
     init_db()

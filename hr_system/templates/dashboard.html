@@ -1,135 +1,257 @@
 {% extends 'base.html' %}
-{% block title %}대시보드 — 인사관리시스템{% endblock %}
+{% block title %}대시보드 — 통합인사관리시스템{% endblock %}
 {% block content %}
 
 {% if is_employee_view %}
-<!-- ── 직원 대시보드 ────────────────────────────────────────────────────── -->
-<div class="d-flex align-items-center mb-4">
-  <div>
-    <h5 class="fw-bold mb-0">
-      <i class="fa-solid fa-gauge-high me-2" style="color:var(--gold)"></i>
-      안녕하세요, <span style="color:var(--navy)">{{ emp_info.name if emp_info else current_user.name }}</span> 님
-    </h5>
-    <p class="text-muted small mb-0">
-      {{ emp_info.dept if emp_info else '' }}
-      {% if emp_info and emp_info.position %} · {{ emp_info.position }}{% endif %}
-    </p>
-  </div>
-  <div class="ms-auto text-muted small">
-    <i class="fa-solid fa-calendar me-1"></i>{{ now.strftime('%Y년 %m월 %d일') }}
-  </div>
-</div>
+<!-- ══════════════════════════════════════════════════════════════
+     직원 대시보드 (h-well 스타일 4패널)
+══════════════════════════════════════════════════════════════ -->
 
-<div class="row g-4 mb-4">
-  <!-- 출퇴근 위젯 -->
-  <div class="col-lg-5">
-    <div class="checkin-widget">
-      <div class="time-display" id="liveClock">{{ now.strftime('%H:%M') }}</div>
-      <div class="date-display">{{ now.strftime('%Y년 %m월 %d일') }}</div>
-      <div class="d-flex gap-3 justify-content-center">
-        <form method="post" action="{{ url_for('checkin') }}">
-          <input type="hidden" name="action" value="in">
-          <button type="submit" class="btn-checkin">
-            <i class="fa-solid fa-sign-in-alt me-2"></i>출근
-          </button>
-        </form>
-        <form method="post" action="{{ url_for('checkin') }}">
-          <input type="hidden" name="action" value="out">
-          <button type="submit" class="btn-checkout">
-            <i class="fa-solid fa-sign-out-alt me-2"></i>퇴근
-          </button>
-        </form>
+<!-- 상단: 개인정보 + 공지사항 -->
+<div class="row g-3 mb-3">
+
+  <!-- 개인정보 카드 -->
+  <div class="col-lg-4">
+    <div class="hw-profile-card h-100">
+      <div class="hw-profile-header">
+        <div class="hw-avatar">
+          {% if emp_info and emp_info.photo %}
+          <img src="{{ url_for('static', filename='photos/' + emp_info.photo) }}" alt="">
+          {% else %}
+          <i class="fa-solid fa-user-tie"></i>
+          {% endif %}
+        </div>
+        <div class="hw-profile-name">{{ emp_info.name if emp_info else current_user.name }}</div>
+        <div class="hw-profile-role">
+          {{ emp_info.dept if emp_info and emp_info.dept else '부서 미지정' }}
+          {% if emp_info and emp_info.position %} · {{ emp_info.position }}{% endif %}
+        </div>
       </div>
-      {% if today_att %}
-      <div class="checkin-status">
-        {% if today_att.check_in %}
-        <i class="fa-solid fa-circle" style="color:#4caf50;font-size:.6rem"></i>
-        출근 <strong>{{ today_att.check_in }}</strong>
+      <div class="hw-profile-body">
+        {% if emp_info %}
+        <div class="hw-info-row">
+          <span class="hw-info-label"><i class="fa-solid fa-building"></i>소속</span>
+          <span>{{ sel.name if sel else '-' }}</span>
+        </div>
+        <div class="hw-info-row">
+          <span class="hw-info-label"><i class="fa-solid fa-id-badge"></i>사번</span>
+          <span>{{ emp_info.emp_no or '-' }}</span>
+        </div>
+        <div class="hw-info-row">
+          <span class="hw-info-label"><i class="fa-solid fa-calendar"></i>입사일</span>
+          <span>{{ emp_info.hire_date or '-' }}</span>
+        </div>
+        <div class="hw-info-row">
+          <span class="hw-info-label"><i class="fa-solid fa-briefcase"></i>고용형태</span>
+          <span>{{ emp_info.emp_type or '정규직' }}</span>
+        </div>
         {% endif %}
-        {% if today_att.check_out %}
-         &nbsp;·&nbsp; 퇴근 <strong>{{ today_att.check_out }}</strong>
-         &nbsp;·&nbsp; 근무 <strong>{{ '%.1f'|format(today_att.work_hours) }}h</strong>
+        <hr class="my-2">
+        <!-- 출퇴근 버튼 -->
+        <div class="d-flex gap-2 justify-content-center">
+          <form method="post" action="{{ url_for('checkin') }}">
+            <input type="hidden" name="action" value="in">
+            <button class="btn btn-sm hw-btn-in"><i class="fa-solid fa-sign-in-alt me-1"></i>출근</button>
+          </form>
+          <form method="post" action="{{ url_for('checkin') }}">
+            <input type="hidden" name="action" value="out">
+            <button class="btn btn-sm hw-btn-out"><i class="fa-solid fa-sign-out-alt me-1"></i>퇴근</button>
+          </form>
+        </div>
+        {% if today_att and today_att.check_in %}
+        <div class="hw-today-status mt-2">
+          <i class="fa-solid fa-circle" style="color:#2ecc71;font-size:.6rem"></i>
+          출근 <strong>{{ today_att.check_in }}</strong>
+          {% if today_att.check_out %}
+          &nbsp;·&nbsp; 퇴근 <strong>{{ today_att.check_out }}</strong>
+          &nbsp;·&nbsp; <strong>{{ '%.1f'|format(today_att.work_hours) }}h</strong>
+          {% endif %}
+        </div>
         {% endif %}
-        {% if not today_att.check_in and not today_att.check_out %}
-        오늘 출퇴근 기록 없음
-        {% endif %}
+        <!-- 이달 통계 -->
+        <div class="row g-2 mt-2 text-center">
+          <div class="col-4">
+            <div class="hw-mini-stat">
+              <div class="hw-mini-val text-primary">{{ month_days }}</div>
+              <div class="hw-mini-label">근무일</div>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="hw-mini-stat">
+              <div class="hw-mini-val text-success">{{ '%.0f'|format(month_hours) }}</div>
+              <div class="hw-mini-label">근무(h)</div>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="hw-mini-stat">
+              {% if leave_bal %}
+              {% set remain = leave_bal.total_days - leave_bal.used_days %}
+              <div class="hw-mini-val {% if remain < 3 %}text-danger{% else %}text-warning{% endif %}">{{ '%.0f'|format(remain) }}</div>
+              {% else %}
+              <div class="hw-mini-val text-muted">-</div>
+              {% endif %}
+              <div class="hw-mini-label">잔여연차</div>
+            </div>
+          </div>
+        </div>
       </div>
-      {% else %}
-      <div class="checkin-status">
-        <i class="fa-solid fa-circle-info me-1"></i>오늘 출퇴근 기록이 없습니다.
-      </div>
-      {% endif %}
     </div>
   </div>
 
-  <!-- 통계 카드 -->
+  <!-- 공지사항 -->
+  <div class="col-lg-8">
+    <div class="stat-card h-100">
+      <div class="card-header py-3 d-flex align-items-center">
+        <i class="fa-solid fa-bullhorn me-2 text-primary"></i>
+        <span class="fw-semibold">공지사항</span>
+        <a href="{{ url_for('notices') }}" class="ms-auto btn btn-outline-secondary btn-sm">전체보기</a>
+      </div>
+      <div class="card-body p-0">
+        {% if notice_rows %}
+        <div class="hw-notice-list">
+          {% for n in notice_rows %}
+          <div class="hw-notice-item {% if n.is_pinned %}hw-notice-pin{% endif %}">
+            <div class="d-flex align-items-start gap-2">
+              {% if n.is_pinned %}<span class="hw-pin-badge">공지</span>{% endif %}
+              <span class="fw-semibold flex-grow-1">{{ n.title }}</span>
+              <span class="hw-notice-date">{{ n.created_at[:10] }}</span>
+            </div>
+            {% if n.content %}
+            <div class="hw-notice-excerpt">{{ n.content[:80] }}{% if n.content|length > 80 %}…{% endif %}</div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-5 small">
+          <i class="fa-solid fa-inbox fa-2x mb-2 d-block opacity-25"></i>등록된 공지사항이 없습니다.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 하단: 빠른 메뉴 + 근무현황 캘린더 -->
+<div class="row g-3">
+  <!-- 빠른 메뉴 -->
+  <div class="col-lg-5">
+    <div class="stat-card">
+      <div class="card-header py-3">
+        <i class="fa-solid fa-grip me-2 text-primary"></i><span class="fw-semibold">빠른 메뉴</span>
+      </div>
+      <div class="card-body">
+        <div class="hw-quick-grid">
+          <a href="{{ url_for('attendance') }}?tab=input" class="hw-quick-item">
+            <div class="hw-qi-icon" style="background:#e8f4fd;color:#1565c0">
+              <i class="fa-solid fa-clock"></i>
+            </div>
+            <div class="hw-qi-label">근태입력</div>
+          </a>
+          <a href="{{ url_for('leave') }}" class="hw-quick-item">
+            <div class="hw-qi-icon" style="background:#e8f5e9;color:#1a8a5a">
+              <i class="fa-solid fa-calendar-days"></i>
+            </div>
+            <div class="hw-qi-label">휴가신청</div>
+          </a>
+          <a href="{{ url_for('trip') }}" class="hw-quick-item">
+            <div class="hw-qi-icon" style="background:#fff3e0;color:#e65100">
+              <i class="fa-solid fa-plane"></i>
+            </div>
+            <div class="hw-qi-label">출장신청</div>
+          </a>
+          <a href="{{ url_for('salary') }}" class="hw-quick-item">
+            <div class="hw-qi-icon" style="background:#fce4ec;color:#c62828">
+              <i class="fa-solid fa-won-sign"></i>
+            </div>
+            <div class="hw-qi-label">급여명세</div>
+          </a>
+          <a href="{{ url_for('welfare') }}" class="hw-quick-item">
+            <div class="hw-qi-icon" style="background:#f3e5f5;color:#6a1b9a">
+              <i class="fa-solid fa-heart-pulse"></i>
+            </div>
+            <div class="hw-qi-label">복리후생</div>
+          </a>
+          <a href="{{ url_for('education') }}" class="hw-quick-item">
+            <div class="hw-qi-icon" style="background:#e0f7fa;color:#006064">
+              <i class="fa-solid fa-graduation-cap"></i>
+            </div>
+            <div class="hw-qi-label">교육신청</div>
+          </a>
+          <a href="{{ url_for('performance') }}" class="hw-quick-item">
+            <div class="hw-qi-icon" style="background:#f9fbe7;color:#558b2f">
+              <i class="fa-solid fa-chart-line"></i>
+            </div>
+            <div class="hw-qi-label">성과관리</div>
+          </a>
+          <a href="{{ url_for('grievance') }}" class="hw-quick-item">
+            <div class="hw-qi-icon" style="background:#efebe9;color:#4e342e">
+              <i class="fa-solid fa-handshake"></i>
+            </div>
+            <div class="hw-qi-label">고충상담</div>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 근무현황 캘린더 -->
   <div class="col-lg-7">
-    <div class="row g-3">
-      <div class="col-sm-4">
-        <div class="emp-stat-card">
-          <div class="stat-val text-primary">{{ month_days }}</div>
-          <div class="stat-label">
-            <i class="fa-solid fa-calendar-check me-1"></i>이번 달 근무일
-          </div>
-        </div>
+    <div class="stat-card">
+      <div class="card-header py-3">
+        <i class="fa-solid fa-calendar-week me-2 text-primary"></i>
+        <span class="fw-semibold">{{ now.strftime('%Y년 %m월') }} 근무현황</span>
       </div>
-      <div class="col-sm-4">
-        <div class="emp-stat-card">
-          <div class="stat-val text-success">{{ '%.1f'|format(month_hours) }}</div>
-          <div class="stat-label">
-            <i class="fa-solid fa-clock me-1"></i>이번 달 총근무(h)
+      <div class="card-body p-3">
+        {% set att_map = {} %}
+        {% for a in month_atts_list %}
+          {% set _ = att_map.update({a.work_date: a}) %}
+        {% endfor %}
+        {% set today_s = today_str %}
+        {% set y = now.year %}
+        {% set m = now.month %}
+        {% import 'calendar_macro.html' as cmacro ignore missing %}
+        <div class="hw-mini-cal">
+          <div class="hw-cal-head">
+            {% for d in ['월','화','수','목','금','토','일'] %}
+            <div class="hw-cal-dh {% if loop.index >= 6 %}text-danger{% endif %}">{{ d }}</div>
+            {% endfor %}
           </div>
-        </div>
-      </div>
-      <div class="col-sm-4">
-        <div class="emp-stat-card">
-          {% if leave_bal %}
-          {% set remain = leave_bal.total_days - leave_bal.used_days %}
-          <div class="stat-val {% if remain < 3 %}text-danger{% else %}" style="color:var(--gold){% endif %}">
-            {{ '%.1f'|format(remain) }}
+          <div class="hw-cal-body">
+            {% set ns = namespace(first_wd=0, total_d=0) %}
+            {% for day in range(1, 32) %}
+              {% if day == 1 %}
+                {# python weekday: 0=Mon, 6=Sun — we display Mon-Sun #}
+                {% set ns.first_wd = now.replace(day=1).weekday() %}
+                {% set ns.total_d = (now.replace(month=m % 12 + 1, day=1) - now.replace(day=1)).days if m < 12 else (now.replace(year=y+1, month=1, day=1) - now.replace(day=1)).days %}
+              {% endif %}
+            {% endfor %}
+            <!-- empty cells before first day -->
+            {% for i in range(ns.first_wd) %}
+            <div class="hw-cal-cell hw-cal-empty"></div>
+            {% endfor %}
+            <!-- day cells -->
+            {% set total_days_in_month = namespace(v=31) %}
+            {% for day in range(1, 32) %}
+              {% set ds = '%04d-%02d-%02d'|format(y, m, day) %}
+              {% if ds <= '%04d-%02d-31'|format(y, m) %}
+                {% set wd = (ns.first_wd + day - 1) % 7 %}
+                {% set a = att_map.get(ds) %}
+                <div class="hw-cal-cell {% if ds == today_s %}hw-cal-today{% endif %}
+                  {% if wd >= 5 %}hw-cal-wkend{% endif %}">
+                  <span class="hw-cal-day-num">{{ day }}</span>
+                  {% if a %}
+                    {% if a.check_in %}
+                    <span class="hw-cal-dot hw-dot-ok" title="{{ a.check_in }}~{{ a.check_out or '' }}">●</span>
+                    {% endif %}
+                  {% endif %}
+                </div>
+              {% endif %}
+            {% endfor %}
           </div>
-          {% else %}
-          <div class="stat-val text-muted">-</div>
-          {% endif %}
-          <div class="stat-label">
-            <i class="fa-solid fa-umbrella-beach me-1"></i>연차 잔여(일)
-          </div>
-        </div>
-      </div>
-      <!-- 최근 급여 -->
-      <div class="col-12">
-        <div class="stat-card">
-          <div class="card-header py-2">
-            <i class="fa-solid fa-won-sign me-2" style="color:var(--gold)"></i>최근 급여 내역
-          </div>
-          <div class="card-body p-0">
-            <table class="table table-sm mb-0">
-              <thead>
-                <tr>
-                  <th>지급년월</th><th class="text-end">기본급</th>
-                  <th class="text-end">수당합계</th>
-                  <th class="text-end text-success fw-bold">실수령액</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-              {% for s in last_salaries %}
-              <tr>
-                <td class="fw-semibold">{{ s.year }}년 {{ s.month }}월</td>
-                <td class="text-end">{{ '{:,}'.format(s.base) }}</td>
-                <td class="text-end">{{ '{:,}'.format(s.allowance) }}</td>
-                <td class="text-end text-success fw-bold">{{ '{:,}'.format(s.net_pay) }}원</td>
-                <td>
-                  <button class="btn btn-outline-secondary btn-sm" onclick="showPayslip({{ s.id }})">
-                    <i class="fa-solid fa-file-invoice"></i>
-                  </button>
-                </td>
-              </tr>
-              {% else %}
-              <tr><td colspan="5" class="text-center text-muted py-3 small">급여 내역 없음</td></tr>
-              {% endfor %}
-              </tbody>
-            </table>
+          <div class="mt-2 d-flex gap-3 small text-muted">
+            <span><span class="hw-cal-dot hw-dot-ok">●</span> 출근</span>
+            <span class="ms-auto"><i class="fa-solid fa-circle" style="color:var(--gold);font-size:.5rem"></i> 오늘</span>
           </div>
         </div>
       </div>
@@ -138,57 +260,149 @@
 </div>
 
 {% else %}
-<!-- ── 관리자 / 기업담당자 대시보드 ──────────────────────────────────── -->
-<h5 class="fw-bold mb-4">
-  <i class="fa-solid fa-gauge-high me-2" style="color:var(--gold)"></i>대시보드
-</h5>
-<div class="row g-3 mb-4">
-  <div class="col-md-4">
+<!-- ══════════════════════════════════════════════════════════════
+     관리자/기업담당자 대시보드 (h-well 스타일)
+══════════════════════════════════════════════════════════════ -->
+
+<!-- 상단: 통계 카드 행 -->
+<div class="row g-3 mb-3">
+  <div class="col-sm-6 col-xl-3">
+    <div class="hw-stat-block hw-stat-navy">
+      <div class="hw-sb-icon"><i class="fa-solid fa-building"></i></div>
+      <div class="hw-sb-val">{{ total_co }}</div>
+      <div class="hw-sb-label">등록 회사</div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="hw-stat-block hw-stat-green">
+      <div class="hw-sb-icon"><i class="fa-solid fa-users"></i></div>
+      <div class="hw-sb-val">{{ total_emp }}</div>
+      <div class="hw-sb-label">재직 직원</div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="hw-stat-block hw-stat-gold">
+      <div class="hw-sb-icon"><i class="fa-solid fa-file-contract"></i></div>
+      <div class="hw-sb-val">{{ consult_cnt }}</div>
+      <div class="hw-sb-label">이달 자문의뢰</div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="hw-stat-block hw-stat-blue">
+      <div class="hw-sb-icon"><i class="fa-solid fa-calendar-check"></i></div>
+      <div class="hw-sb-val">{{ att_summary.att_cnt if att_summary else 0 }}</div>
+      <div class="hw-sb-label">이달 근태건수</div>
+    </div>
+  </div>
+</div>
+
+<!-- 중단: 공지사항 + 빠른 메뉴 -->
+<div class="row g-3 mb-3">
+  <!-- 공지사항 -->
+  <div class="col-lg-7">
     <div class="stat-card h-100">
-      <div class="card-body d-flex align-items-center gap-3">
-        <div class="icon" style="background:rgba(13,27,42,.08)">
-          <i class="fa-solid fa-building" style="color:var(--navy)"></i>
+      <div class="card-header py-3 d-flex align-items-center">
+        <i class="fa-solid fa-bullhorn me-2 text-primary"></i>
+        <span class="fw-semibold">공지사항</span>
+        {% if current_user.is_admin or current_user.is_company %}
+        <button class="ms-auto btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#noticeModal">
+          <i class="fa-solid fa-plus me-1"></i>등록
+        </button>
+        {% endif %}
+        <a href="{{ url_for('notices') }}" class="btn btn-outline-secondary btn-sm {% if current_user.is_admin or current_user.is_company %}ms-2{% else %}ms-auto{% endif %}">전체</a>
+      </div>
+      <div class="card-body p-0">
+        {% if notice_rows %}
+        <div class="hw-notice-list">
+          {% for n in notice_rows %}
+          <div class="hw-notice-item {% if n.is_pinned %}hw-notice-pin{% endif %}">
+            <div class="d-flex align-items-center gap-2">
+              {% if n.is_pinned %}<span class="hw-pin-badge">공지</span>{% endif %}
+              <span class="fw-semibold flex-grow-1">{{ n.title }}</span>
+              <span class="hw-notice-date">{{ n.created_at[:10] }}</span>
+            </div>
+          </div>
+          {% endfor %}
         </div>
-        <div>
-          <div class="text-muted small">등록 회사</div>
-          <div class="fs-4 fw-bold">{{ total_co }}<span class="fs-6 text-muted ms-1">개사</span></div>
+        {% else %}
+        <div class="text-center text-muted py-5 small">
+          <i class="fa-solid fa-inbox fa-2x mb-2 d-block opacity-25"></i>등록된 공지사항이 없습니다.
         </div>
+        {% endif %}
       </div>
     </div>
   </div>
-  <div class="col-md-4">
+
+  <!-- 빠른 메뉴 -->
+  <div class="col-lg-5">
     <div class="stat-card h-100">
-      <div class="card-body d-flex align-items-center gap-3">
-        <div class="icon" style="background:rgba(26,138,90,.1)">
-          <i class="fa-solid fa-users" style="color:#1a8a5a"></i>
-        </div>
-        <div>
-          <div class="text-muted small">재직 직원</div>
-          <div class="fs-4 fw-bold">{{ total_emp }}<span class="fs-6 text-muted ms-1">명</span></div>
-        </div>
+      <div class="card-header py-3">
+        <i class="fa-solid fa-grip me-2 text-primary"></i><span class="fw-semibold">빠른 메뉴</span>
       </div>
-    </div>
-  </div>
-  <div class="col-md-4">
-    <div class="stat-card h-100">
-      <div class="card-body d-flex align-items-center gap-3">
-        <div class="icon" style="background:rgba(201,168,76,.12)">
-          <i class="fa-solid fa-file-contract" style="color:var(--gold)"></i>
-        </div>
-        <div>
-          <div class="text-muted small">이번달 자문의뢰</div>
-          <div class="fs-4 fw-bold">{{ consult_cnt }}<span class="fs-6 text-muted ms-1">건</span></div>
+      <div class="card-body">
+        <div class="hw-quick-grid">
+          <a href="{{ url_for('employees') }}" class="hw-quick-item">
+            <div class="hw-qi-icon" style="background:#e8f4fd;color:#1565c0">
+              <i class="fa-solid fa-users"></i>
+            </div>
+            <div class="hw-qi-label">인사관리</div>
+          </a>
+          <a href="{{ url_for('attendance') }}?tab=search" class="hw-quick-item">
+            <div class="hw-qi-icon" style="background:#e8f5e9;color:#1a8a5a">
+              <i class="fa-solid fa-clock"></i>
+            </div>
+            <div class="hw-qi-label">근태관리</div>
+          </a>
+          <a href="{{ url_for('trip') }}" class="hw-quick-item">
+            <div class="hw-qi-icon" style="background:#fff3e0;color:#e65100">
+              <i class="fa-solid fa-plane"></i>
+            </div>
+            <div class="hw-qi-label">출장관리</div>
+          </a>
+          <a href="{{ url_for('salary') }}" class="hw-quick-item">
+            <div class="hw-qi-icon" style="background:#fce4ec;color:#c62828">
+              <i class="fa-solid fa-won-sign"></i>
+            </div>
+            <div class="hw-qi-label">보수관리</div>
+          </a>
+          <a href="{{ url_for('welfare') }}" class="hw-quick-item">
+            <div class="hw-qi-icon" style="background:#f3e5f5;color:#6a1b9a">
+              <i class="fa-solid fa-heart-pulse"></i>
+            </div>
+            <div class="hw-qi-label">복리후생</div>
+          </a>
+          <a href="{{ url_for('education') }}" class="hw-quick-item">
+            <div class="hw-qi-icon" style="background:#e0f7fa;color:#006064">
+              <i class="fa-solid fa-graduation-cap"></i>
+            </div>
+            <div class="hw-qi-label">교육관리</div>
+          </a>
+          <a href="{{ url_for('performance') }}" class="hw-quick-item">
+            <div class="hw-qi-icon" style="background:#f9fbe7;color:#558b2f">
+              <i class="fa-solid fa-chart-line"></i>
+            </div>
+            <div class="hw-qi-label">성과관리</div>
+          </a>
+          <a href="{{ url_for('grievance') }}" class="hw-quick-item">
+            <div class="hw-qi-icon" style="background:#efebe9;color:#4e342e">
+              <i class="fa-solid fa-handshake"></i>
+            </div>
+            <div class="hw-qi-label">고충관리</div>
+          </a>
         </div>
       </div>
     </div>
   </div>
 </div>
 
+<!-- 하단: 최근 자문의뢰 + 회사별 현황 -->
 <div class="row g-3">
-  <div class="col-md-8">
+  <div class="col-lg-8">
     <div class="stat-card">
       <div class="card-header py-3">
-        <i class="fa-solid fa-clock-rotate-left me-2" style="color:var(--gold)"></i>최근 자문의뢰
+        <i class="fa-solid fa-clock-rotate-left me-2" style="color:var(--gold)"></i>
+        <span class="fw-semibold">최근 자문의뢰</span>
+        <a href="{{ url_for('consultation') }}" class="ms-auto btn btn-outline-secondary btn-sm">전체보기</a>
       </div>
       <div class="card-body p-0">
         <table class="table mb-0">
@@ -199,7 +413,7 @@
           {% for r in recent %}
           <tr>
             <td class="text-muted small">{{ r.co_name }}</td>
-            <td><a href="{{ url_for('consultation') }}" class="text-decoration-none text-dark fw-semibold">{{ r.title }}</a></td>
+            <td><a href="{{ url_for('consultation') }}" class="text-decoration-none fw-semibold">{{ r.title }}</a></td>
             <td><span class="badge bg-secondary">{{ r.category }}</span></td>
             <td><span class="pri-{{ r.priority }}">{{ r.priority }}</span></td>
             <td><span class="badge badge-{{ r.status }}">{{ r.status }}</span></td>
@@ -213,10 +427,11 @@
       </div>
     </div>
   </div>
-  <div class="col-md-4">
+  <div class="col-lg-4">
     <div class="stat-card">
       <div class="card-header py-3">
-        <i class="fa-solid fa-chart-bar me-2" style="color:var(--gold)"></i>회사별 직원 현황
+        <i class="fa-solid fa-chart-bar me-2" style="color:var(--gold)"></i>
+        <span class="fw-semibold">회사별 직원 현황</span>
       </div>
       <div class="card-body p-0">
         <table class="table mb-0">
@@ -238,9 +453,55 @@
     </div>
   </div>
 </div>
+
+<!-- 공지사항 등록 모달 -->
+{% if current_user.is_admin or current_user.is_company %}
+<div class="modal fade" id="noticeModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title"><i class="fa-solid fa-bullhorn me-2"></i>공지사항 등록</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{{ url_for('notice_add') }}">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">제목 <span class="text-danger">*</span></label>
+            <input name="title" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">내용</label>
+            <textarea name="content" class="form-control" rows="4"></textarea>
+          </div>
+          <div class="d-flex gap-3">
+            <div class="flex-grow-1">
+              <label class="form-label fw-semibold">분류</label>
+              <select name="category" class="form-select">
+                <option>일반</option><option>인사</option><option>급여</option>
+                <option>교육</option><option>복리후생</option><option>기타</option>
+              </select>
+            </div>
+            <div class="align-self-end pb-1">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="is_pinned" id="pin1">
+                <label class="form-check-label" for="pin1">상단 고정</label>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">취소</button>
+          <button type="submit" class="btn btn-primary">등록</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 {% endif %}
 
-<!-- 임금명세서 모달 (직원 대시보드) -->
+{% endif %}
+
+<!-- 급여명세서 모달 (직원) -->
 {% if is_employee_view %}
 <div class="modal fade" id="payslipModal" tabindex="-1">
   <div class="modal-dialog modal-lg">
@@ -306,9 +567,6 @@
             <div class="text-muted small mb-1">실 수 령 액</div>
             <div class="fw-bold fs-3" style="color:var(--navy)" id="ps_net_pay"></div>
           </div>
-          <div class="text-center mt-3 text-muted small">
-            발급일: {{ now.strftime('%Y년 %m월 %d일') }}
-          </div>
         </div>
       </div>
     </div>
@@ -316,16 +574,9 @@
 </div>
 {% endif %}
 {% endblock %}
+
 {% block scripts %}
 <script>
-function updateClock() {
-  const el = document.getElementById('liveClock');
-  if (!el) return;
-  const n = new Date();
-  el.textContent = n.toTimeString().slice(0, 5);
-}
-setInterval(updateClock, 1000);
-
 {% if is_employee_view %}
 function fmt(n) { return parseInt(n||0).toLocaleString('ko-KR') + '원'; }
 function showPayslip(sid) {
@@ -364,7 +615,7 @@ function printPayslip() {
   const w = window.open('', '_blank');
   w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>임금명세서</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
-    <style>body{padding:24px;font-family:'Malgun Gothic',sans-serif}@media print{@page{margin:15mm}}</style>
+    <style>body{padding:24px;font-family:'Malgun Gothic',sans-serif}</style>
     </head><body>${c}</body></html>`);
   w.document.close(); w.onload = () => { w.print(); w.close(); };
 }

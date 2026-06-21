@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{% block title %}인사관리시스템{% endblock %}</title>
+<title>{% block title %}통합인사관리시스템{% endblock %}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
@@ -11,130 +11,234 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-<!-- 사이드바 -->
+
+{% set _ep = request.endpoint %}
+
+<!-- ── 사이드바 ────────────────────────────────────────────────────────────── -->
 <nav id="sidebar">
   <div class="brand">
-    <div class="brand-title">
-      <i class="fa-solid fa-scale-balanced"></i>인사관리시스템
-    </div>
-    <small>노무사 자문 전용 플랫폼</small>
+    <a href="{{ url_for('dashboard') }}" class="brand-link">
+      <div class="brand-title">
+        <i class="fa-solid fa-scale-balanced"></i>통합인사관리
+      </div>
+      <small>HR Management System</small>
+    </a>
   </div>
-  <ul class="nav flex-column mt-1">
+
+  <ul class="nav flex-column mt-1 sidebar-nav">
+    <!-- 대시보드 -->
     <li class="nav-item">
-      <a class="nav-link {% if request.endpoint=='dashboard' %}active{% endif %}"
+      <a class="nav-link {% if _ep=='dashboard' %}active{% endif %}"
          href="{{ url_for('dashboard') }}">
-        <i class="fa-solid fa-gauge-high"></i>대시보드
+        <i class="fa-solid fa-house"></i><span>홈 대시보드</span>
       </a>
     </li>
 
     {% if not current_user.is_employee %}
-    <li class="nav-section-label">업무 관리</li>
-    {% if current_user.is_admin %}
-    <li class="nav-item">
-      <a class="nav-link {% if request.endpoint=='companies' %}active{% endif %}"
-         href="{{ url_for('companies') }}">
-        <i class="fa-solid fa-building"></i>회사 관리
-      </a>
-    </li>
-    {% endif %}
-    <li class="nav-item">
-      <a class="nav-link {% if request.endpoint=='employees' %}active{% endif %}"
-         href="{{ url_for('employees') }}">
-        <i class="fa-solid fa-users"></i>인사정보 관리
-      </a>
-    </li>
-    {% set att_active = request.endpoint in ['attendance','attendance_add','attendance_bulk_add','attendance_delete'] %}
-    <li class="nav-item nav-parent {% if att_active %}open{% endif %}">
-      <a class="nav-link nav-toggle {% if att_active %}active{% endif %}" href="#" onclick="toggleNav(this);return false">
-        <i class="fa-solid fa-clock"></i>출퇴근 관리<i class="fa-solid fa-chevron-right nav-arrow"></i>
+
+    <!-- ── 인사관리 ── -->
+    {% set _hr = _ep in ['employees','employee_add','employee_edit','companies','company_add'] %}
+    <li class="nav-item nav-parent {% if _hr %}open{% endif %}">
+      <a class="nav-link nav-toggle {% if _hr %}active{% endif %}" href="#" onclick="toggleNav(this);return false">
+        <i class="fa-solid fa-users"></i><span>인사관리</span>
+        <i class="fa-solid fa-chevron-right nav-arrow ms-auto"></i>
       </a>
       <ul class="nav-sub">
-        <li><a class="nav-sub-link {% if att_active and request.args.get('tab','search')=='input' %}active{% endif %}"
-               href="{{ url_for('attendance') }}?tab=input"><i class="fa-solid fa-keyboard"></i>근태입력</a></li>
-        <li><a class="nav-sub-link {% if att_active and request.args.get('tab','search')=='search' %}active{% endif %}"
-               href="{{ url_for('attendance') }}?tab=search"><i class="fa-solid fa-magnifying-glass"></i>근태조회</a></li>
-        <li><a class="nav-sub-link {% if att_active and request.args.get('tab')=='status' %}active{% endif %}"
-               href="{{ url_for('attendance') }}?tab=status"><i class="fa-solid fa-chart-bar"></i>근태현황</a></li>
-        <li><a class="nav-sub-link {% if att_active and request.args.get('tab')=='record' %}active{% endif %}"
-               href="{{ url_for('attendance') }}?tab=record"><i class="fa-solid fa-book"></i>출퇴근기록부</a></li>
-        <li><a class="nav-sub-link {% if att_active and request.args.get('tab')=='current' %}active{% endif %}"
-               href="{{ url_for('attendance') }}?tab=current"><i class="fa-solid fa-table"></i>출퇴근현황</a></li>
-        <li><a class="nav-sub-link {% if att_active and request.args.get('tab')=='late' %}active{% endif %}"
-               href="{{ url_for('attendance') }}?tab=late"><i class="fa-solid fa-triangle-exclamation"></i>지각현황</a></li>
+        {% if current_user.is_admin %}
+        <li><a class="nav-sub-link {% if _ep=='companies' %}active{% endif %}"
+               href="{{ url_for('companies') }}"><i class="fa-solid fa-building"></i>회사 관리</a></li>
+        {% endif %}
+        <li><a class="nav-sub-link {% if _ep=='employees' %}active{% endif %}"
+               href="{{ url_for('employees') }}"><i class="fa-solid fa-id-card"></i>인사기본사항</a></li>
+        {% if current_user.is_admin %}
+        <li><a class="nav-sub-link {% if _ep=='users' %}active{% endif %}"
+               href="{{ url_for('users') }}"><i class="fa-solid fa-users-gear"></i>계정 관리</a></li>
+        {% endif %}
       </ul>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link {% if request.endpoint=='leave' %}active{% endif %}"
-         href="{{ url_for('leave') }}">
-        <i class="fa-solid fa-calendar-days"></i>휴가 관리
-      </a>
-    </li>
-    {% set sal_active = request.endpoint in ['salary','salary_settings','salary_severance'] %}
-    <li class="nav-item nav-parent {% if sal_active %}open{% endif %}">
-      <a class="nav-link nav-toggle {% if sal_active %}active{% endif %}" href="#" onclick="toggleNav(this);return false">
-        <i class="fa-solid fa-won-sign"></i>보수 관리<i class="fa-solid fa-chevron-right nav-arrow"></i>
-      </a>
-      <ul class="nav-sub">
-        <li><a class="nav-sub-link {% if request.endpoint=='salary' %}active{% endif %}"
-               href="{{ url_for('salary') }}"><i class="fa-solid fa-file-invoice-dollar"></i>급여 관리</a></li>
-        <li><a class="nav-sub-link {% if request.endpoint=='salary_settings' %}active{% endif %}"
-               href="{{ url_for('salary_settings') }}"><i class="fa-solid fa-list"></i>수당/공제 항목</a></li>
-        <li><a class="nav-sub-link {% if request.endpoint=='salary_severance' %}active{% endif %}"
-               href="{{ url_for('salary_severance') }}"><i class="fa-solid fa-calculator"></i>퇴직금 계산</a></li>
-      </ul>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link {% if request.endpoint=='calendar_view' %}active{% endif %}"
-         href="{{ url_for('calendar_view') }}">
-        <i class="fa-solid fa-calendar-check"></i>근태 캘린더
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link {% if request.endpoint=='consultation' %}active{% endif %}"
-         href="{{ url_for('consultation') }}">
-        <i class="fa-solid fa-file-contract"></i>노무자문의뢰
-      </a>
     </li>
 
-    {% if current_user.is_admin %}
+    <!-- ── 근태관리 ── -->
+    {% set _att = _ep in ['attendance','attendance_add','attendance_bulk_add','attendance_delete','leave','leave_add','leave_delete','calendar_view'] %}
+    <li class="nav-item nav-parent {% if _att %}open{% endif %}">
+      <a class="nav-link nav-toggle {% if _att %}active{% endif %}" href="#" onclick="toggleNav(this);return false">
+        <i class="fa-solid fa-clock"></i><span>근태관리</span>
+        <i class="fa-solid fa-chevron-right nav-arrow ms-auto"></i>
+      </a>
+      <ul class="nav-sub">
+        <li><a class="nav-sub-link {% if _ep in ['attendance','attendance_add','attendance_bulk_add','attendance_delete'] and request.args.get('tab','search')=='input' %}active{% endif %}"
+               href="{{ url_for('attendance') }}?tab=input"><i class="fa-solid fa-keyboard"></i>근태입력</a></li>
+        <li><a class="nav-sub-link {% if _ep in ['attendance','attendance_add','attendance_bulk_add','attendance_delete'] and request.args.get('tab','search')=='search' %}active{% endif %}"
+               href="{{ url_for('attendance') }}?tab=search"><i class="fa-solid fa-magnifying-glass"></i>근태조회</a></li>
+        <li><a class="nav-sub-link {% if _ep=='attendance' and request.args.get('tab')=='status' %}active{% endif %}"
+               href="{{ url_for('attendance') }}?tab=status"><i class="fa-solid fa-chart-bar"></i>근태현황</a></li>
+        <li><a class="nav-sub-link {% if _ep=='attendance' and request.args.get('tab')=='record' %}active{% endif %}"
+               href="{{ url_for('attendance') }}?tab=record"><i class="fa-solid fa-book"></i>출퇴근기록부</a></li>
+        <li><a class="nav-sub-link {% if _ep=='attendance' and request.args.get('tab')=='current' %}active{% endif %}"
+               href="{{ url_for('attendance') }}?tab=current"><i class="fa-solid fa-table-cells"></i>출퇴근현황</a></li>
+        <li><a class="nav-sub-link {% if _ep=='attendance' and request.args.get('tab')=='late' %}active{% endif %}"
+               href="{{ url_for('attendance') }}?tab=late"><i class="fa-solid fa-triangle-exclamation"></i>지각현황</a></li>
+        <li><a class="nav-sub-link {% if _ep in ['leave','leave_add','leave_delete'] %}active{% endif %}"
+               href="{{ url_for('leave') }}"><i class="fa-solid fa-calendar-days"></i>휴가관리</a></li>
+        <li><a class="nav-sub-link {% if _ep=='calendar_view' %}active{% endif %}"
+               href="{{ url_for('calendar_view') }}"><i class="fa-solid fa-calendar-check"></i>근태캘린더</a></li>
+      </ul>
+    </li>
+
+    <!-- ── 출장관리 ── -->
+    {% set _trip = _ep in ['trip','trip_add','trip_delete','trip_status'] %}
+    <li class="nav-item nav-parent {% if _trip %}open{% endif %}">
+      <a class="nav-link nav-toggle {% if _trip %}active{% endif %}" href="#" onclick="toggleNav(this);return false">
+        <i class="fa-solid fa-plane"></i><span>출장관리</span>
+        <i class="fa-solid fa-chevron-right nav-arrow ms-auto"></i>
+      </a>
+      <ul class="nav-sub">
+        <li><a class="nav-sub-link {% if _trip %}active{% endif %}"
+               href="{{ url_for('trip') }}"><i class="fa-solid fa-paper-plane"></i>출장신청/현황</a></li>
+      </ul>
+    </li>
+
+    <!-- ── 보수관리 ── -->
+    {% set _sal = _ep in ['salary','salary_settings','salary_severance','severance_calc','severance_delete'] %}
+    <li class="nav-item nav-parent {% if _sal %}open{% endif %}">
+      <a class="nav-link nav-toggle {% if _sal %}active{% endif %}" href="#" onclick="toggleNav(this);return false">
+        <i class="fa-solid fa-won-sign"></i><span>보수관리</span>
+        <i class="fa-solid fa-chevron-right nav-arrow ms-auto"></i>
+      </a>
+      <ul class="nav-sub">
+        <li><a class="nav-sub-link {% if _ep=='salary' %}active{% endif %}"
+               href="{{ url_for('salary') }}"><i class="fa-solid fa-file-invoice-dollar"></i>급여관리</a></li>
+        <li><a class="nav-sub-link {% if _ep=='salary_settings' %}active{% endif %}"
+               href="{{ url_for('salary_settings') }}"><i class="fa-solid fa-list-check"></i>수당/공제항목</a></li>
+        <li><a class="nav-sub-link {% if _ep in ['salary_severance','severance_calc','severance_delete'] %}active{% endif %}"
+               href="{{ url_for('salary_severance') }}"><i class="fa-solid fa-calculator"></i>퇴직금계산</a></li>
+      </ul>
+    </li>
+
+    <!-- ── 복리후생 ── -->
+    {% set _welf = _ep in ['welfare','welfare_add','welfare_delete'] %}
+    <li class="nav-item nav-parent {% if _welf %}open{% endif %}">
+      <a class="nav-link nav-toggle {% if _welf %}active{% endif %}" href="#" onclick="toggleNav(this);return false">
+        <i class="fa-solid fa-heart-pulse"></i><span>복리후생</span>
+        <i class="fa-solid fa-chevron-right nav-arrow ms-auto"></i>
+      </a>
+      <ul class="nav-sub">
+        <li><a class="nav-sub-link {% if _welf %}active{% endif %}"
+               href="{{ url_for('welfare') }}"><i class="fa-solid fa-gift"></i>경조사/복지신청</a></li>
+      </ul>
+    </li>
+
+    <!-- ── 교육관리 ── -->
+    {% set _edu = _ep in ['education','education_add','education_delete','education_status'] %}
+    <li class="nav-item nav-parent {% if _edu %}open{% endif %}">
+      <a class="nav-link nav-toggle {% if _edu %}active{% endif %}" href="#" onclick="toggleNav(this);return false">
+        <i class="fa-solid fa-graduation-cap"></i><span>교육관리</span>
+        <i class="fa-solid fa-chevron-right nav-arrow ms-auto"></i>
+      </a>
+      <ul class="nav-sub">
+        <li><a class="nav-sub-link {% if _edu %}active{% endif %}"
+               href="{{ url_for('education') }}"><i class="fa-solid fa-chalkboard-user"></i>교육신청/이력</a></li>
+      </ul>
+    </li>
+
+    <!-- ── 성과관리 ── -->
+    {% set _perf = _ep in ['performance','performance_add','performance_delete','performance_score'] %}
+    <li class="nav-item nav-parent {% if _perf %}open{% endif %}">
+      <a class="nav-link nav-toggle {% if _perf %}active{% endif %}" href="#" onclick="toggleNav(this);return false">
+        <i class="fa-solid fa-chart-line"></i><span>성과관리</span>
+        <i class="fa-solid fa-chevron-right nav-arrow ms-auto"></i>
+      </a>
+      <ul class="nav-sub">
+        <li><a class="nav-sub-link {% if _perf %}active{% endif %}"
+               href="{{ url_for('performance') }}"><i class="fa-solid fa-bullseye"></i>목표/성과평가</a></li>
+      </ul>
+    </li>
+
+    <!-- ── 고충관리 ── -->
+    {% set _grv = _ep in ['grievance','grievance_add','grievance_delete','grievance_respond'] %}
+    <li class="nav-item nav-parent {% if _grv %}open{% endif %}">
+      <a class="nav-link nav-toggle {% if _grv %}active{% endif %}" href="#" onclick="toggleNav(this);return false">
+        <i class="fa-solid fa-handshake"></i><span>고충관리</span>
+        <i class="fa-solid fa-chevron-right nav-arrow ms-auto"></i>
+      </a>
+      <ul class="nav-sub">
+        <li><a class="nav-sub-link {% if _grv %}active{% endif %}"
+               href="{{ url_for('grievance') }}"><i class="fa-solid fa-comment-dots"></i>고충상담신청</a></li>
+      </ul>
+    </li>
+
     <hr class="sidebar-divider">
-    <li class="nav-section-label">시스템</li>
+
+    <!-- ── 기타 ── -->
     <li class="nav-item">
-      <a class="nav-link {% if request.endpoint=='users' %}active{% endif %}"
-         href="{{ url_for('users') }}">
-        <i class="fa-solid fa-users-gear"></i>계정 관리
+      <a class="nav-link {% if _ep=='notices' %}active{% endif %}"
+         href="{{ url_for('notices') }}">
+        <i class="fa-solid fa-bullhorn"></i><span>공지사항</span>
       </a>
     </li>
-    {% endif %}
+    <li class="nav-item">
+      <a class="nav-link {% if _ep=='consultation' %}active{% endif %}"
+         href="{{ url_for('consultation') }}">
+        <i class="fa-solid fa-file-contract"></i><span>노무자문의뢰</span>
+      </a>
+    </li>
 
     {% else %}
-    <!-- 직원 역할 전용 메뉴 -->
-    <li class="nav-section-label">나의 현황</li>
+    <!-- ── 직원 전용 메뉴 ── -->
     <li class="nav-item">
-      <a class="nav-link {% if request.endpoint=='attendance' %}active{% endif %}"
+      <a class="nav-link {% if _ep=='attendance' %}active{% endif %}"
          href="{{ url_for('attendance') }}">
-        <i class="fa-solid fa-clock"></i>출퇴근 기록
+        <i class="fa-solid fa-clock"></i><span>출퇴근기록</span>
       </a>
     </li>
     <li class="nav-item">
-      <a class="nav-link {% if request.endpoint=='leave' %}active{% endif %}"
+      <a class="nav-link {% if _ep=='leave' %}active{% endif %}"
          href="{{ url_for('leave') }}">
-        <i class="fa-solid fa-calendar-days"></i>휴가 현황
+        <i class="fa-solid fa-calendar-days"></i><span>휴가현황</span>
       </a>
     </li>
     <li class="nav-item">
-      <a class="nav-link {% if request.endpoint=='salary' %}active{% endif %}"
+      <a class="nav-link {% if _ep=='salary' %}active{% endif %}"
          href="{{ url_for('salary') }}">
-        <i class="fa-solid fa-won-sign"></i>급여 명세
+        <i class="fa-solid fa-won-sign"></i><span>급여명세</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if _ep=='trip' %}active{% endif %}"
+         href="{{ url_for('trip') }}">
+        <i class="fa-solid fa-plane"></i><span>출장신청</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if _ep=='welfare' %}active{% endif %}"
+         href="{{ url_for('welfare') }}">
+        <i class="fa-solid fa-heart-pulse"></i><span>복리후생</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if _ep=='education' %}active{% endif %}"
+         href="{{ url_for('education') }}">
+        <i class="fa-solid fa-graduation-cap"></i><span>교육신청</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if _ep=='grievance' %}active{% endif %}"
+         href="{{ url_for('grievance') }}">
+        <i class="fa-solid fa-handshake"></i><span>고충상담</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if _ep=='notices' %}active{% endif %}"
+         href="{{ url_for('notices') }}">
+        <i class="fa-solid fa-bullhorn"></i><span>공지사항</span>
       </a>
     </li>
     {% endif %}
   </ul>
 </nav>
 
-<!-- 콘텐츠 -->
+<!-- ── 콘텐츠 영역 ──────────────────────────────────────────────────────────── -->
 <div id="content">
-  <!-- 관리자 '보기 모드' 배너 -->
+  <!-- 관리자 보기 모드 배너 -->
   {% if current_user.is_admin and session.get('view_employee_id') %}
   <div class="view-as-banner">
     <i class="fa-solid fa-eye" style="color:#b8780a"></i>
@@ -157,9 +261,7 @@
       </button>
       <ul class="dropdown-menu shadow-sm" style="max-height:300px;overflow-y:auto">
         <li>
-          <a class="dropdown-item small" href="{{ url_for('select_company', cid=0) }}">
-            전체 보기
-          </a>
+          <a class="dropdown-item small" href="{{ url_for('select_company', cid=0) }}">전체 보기</a>
         </li>
         <li><hr class="dropdown-divider my-1"></li>
         {% for co in companies %}
@@ -170,7 +272,6 @@
         {% endfor %}
       </ul>
     </div>
-
     {% else %}
     <span class="text-muted small">
       <i class="fa-solid fa-building me-1"></i>
@@ -180,7 +281,7 @@
 
     <div class="ms-auto d-flex align-items-center gap-3">
       <span class="small text-muted d-none d-md-inline">
-        {{ now.strftime('%Y년 %m월 %d일') }}
+        <i class="fa-solid fa-calendar me-1"></i>{{ now.strftime('%Y년 %m월 %d일') }}
       </span>
       <div class="dropdown">
         <button class="btn btn-sm btn-outline-secondary dropdown-toggle d-flex align-items-center gap-2"
@@ -229,7 +330,7 @@
   <div class="page-body">{% block content %}{% endblock %}</div>
 </div>
 
-<!-- 내 비밀번호 변경 모달 -->
+<!-- 비밀번호 변경 모달 -->
 <div class="modal fade" id="myPwModal" tabindex="-1">
   <div class="modal-dialog modal-sm">
     <div class="modal-content">
@@ -262,9 +363,13 @@
 setTimeout(() => document.querySelectorAll('.flash-msg .alert').forEach(a => a.remove()), 4000);
 function toggleNav(el) {
   const li = el.closest('.nav-parent');
-  li.classList.toggle('open');
+  const isOpen = li.classList.contains('open');
+  // close all siblings
+  li.closest('ul').querySelectorAll('.nav-parent.open').forEach(o => {
+    if (o !== li) o.classList.remove('open');
+  });
+  li.classList.toggle('open', !isOpen);
 }
-// Auto-open active parent on load
 document.querySelectorAll('.nav-parent').forEach(li => {
   if (li.querySelector('.nav-sub-link.active')) li.classList.add('open');
 });

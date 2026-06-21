@@ -590,3 +590,161 @@ h1, h2, h3, h4, h5, h6 {
 .badge-taxtype-비과세   { background: #198754; color: #fff; }
 .badge-paytype-고정      { background: #0d6efd; color: #fff; }
 .badge-paytype-변동      { background: #fd7e14; color: #fff; }
+
+/* ── H-Well Dashboard Styles ──────────────────────────────────────────────── */
+
+/* Sidebar brand link */
+.brand-link { text-decoration: none; color: inherit; }
+
+/* Sidebar span text */
+#sidebar .nav-link span { flex: 1; }
+
+/* Stat blocks (상단 4개 카드) */
+.hw-stat-block {
+  border-radius: 12px;
+  padding: 20px 22px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.1);
+}
+.hw-sb-icon { font-size: 1.8rem; opacity: 0.85; }
+.hw-sb-val  { font-size: 2rem; font-weight: 700; line-height: 1; }
+.hw-sb-label { font-size: 0.8rem; opacity: 0.85; margin-top: 2px; }
+.hw-stat-navy { background: linear-gradient(135deg, var(--navy) 0%, var(--navy2) 100%); }
+.hw-stat-green { background: linear-gradient(135deg, #1a8a5a 0%, #14694a 100%); }
+.hw-stat-gold  { background: linear-gradient(135deg, #b8780a 0%, #c9a84c 100%); }
+.hw-stat-blue  { background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%); }
+
+/* Profile card */
+.hw-profile-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(13,27,42,0.06);
+}
+.hw-profile-header {
+  background: linear-gradient(135deg, var(--navy) 0%, var(--navy2) 100%);
+  padding: 24px 20px;
+  text-align: center;
+  color: #fff;
+}
+.hw-avatar {
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  background: rgba(201,168,76,0.2);
+  border: 3px solid var(--gold);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2rem; color: var(--gold-light);
+  margin: 0 auto 12px;
+  overflow: hidden;
+}
+.hw-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.hw-profile-name { font-size: 1.1rem; font-weight: 700; color: var(--gold-light); }
+.hw-profile-role { font-size: 0.78rem; color: rgba(228,201,126,0.7); margin-top: 2px; }
+.hw-profile-body { padding: 16px 18px; }
+
+.hw-info-row {
+  display: flex; align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.83rem;
+  gap: 8px;
+}
+.hw-info-row:last-child { border-bottom: none; }
+.hw-info-label { color: var(--muted); min-width: 60px; display: flex; align-items: center; gap: 5px; }
+.hw-info-label i { width: 14px; text-align: center; font-size: 0.78rem; color: var(--gold); }
+
+.hw-btn-in  { background: var(--gold); color: var(--navy); font-weight: 600; border: none; }
+.hw-btn-in:hover { background: var(--gold-light); color: var(--navy); }
+.hw-btn-out { background: transparent; color: var(--navy); border: 2px solid var(--navy); font-weight: 600; }
+.hw-btn-out:hover { background: var(--navy); color: #fff; }
+.hw-today-status { background: rgba(26,138,90,0.08); border: 1px solid rgba(26,138,90,0.2);
+  border-radius: 6px; padding: 6px 10px; font-size: 0.78rem; color: var(--success); text-align: center; }
+.hw-mini-stat { background: #f8f7f4; border-radius: 8px; padding: 8px 4px; }
+.hw-mini-val  { font-size: 1.3rem; font-weight: 700; }
+.hw-mini-label { font-size: 0.68rem; color: var(--muted); margin-top: 1px; }
+
+/* Notice list */
+.hw-notice-list { }
+.hw-notice-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+}
+.hw-notice-item:last-child { border-bottom: none; }
+.hw-notice-item:hover { background: rgba(201,168,76,0.04); }
+.hw-notice-pin { background: #fffbf0; }
+.hw-pin-badge {
+  display: inline-block; background: var(--gold); color: var(--navy);
+  font-size: 0.65rem; font-weight: 700; padding: 1px 6px;
+  border-radius: 3px; white-space: nowrap;
+}
+.hw-notice-date { font-size: 0.75rem; color: var(--muted); white-space: nowrap; }
+.hw-notice-excerpt { font-size: 0.78rem; color: var(--muted); margin-top: 3px; }
+
+/* Full notice list */
+.hw-notice-item-full {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.hw-notice-item-full:last-child { border-bottom: none; }
+.hw-notice-item-full:hover { background: rgba(201,168,76,0.03); }
+
+/* Quick menu grid */
+.hw-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.hw-quick-item {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 6px; padding: 12px 6px;
+  text-decoration: none; color: var(--text);
+  border-radius: 10px; border: 1px solid var(--border);
+  transition: all 0.15s;
+  background: var(--white);
+}
+.hw-quick-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(13,27,42,0.1);
+  border-color: var(--gold);
+  color: var(--navy);
+}
+.hw-qi-icon {
+  width: 46px; height: 46px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem;
+}
+.hw-qi-label { font-size: 0.72rem; font-weight: 600; text-align: center; }
+
+/* Mini calendar */
+.hw-mini-cal { }
+.hw-cal-head {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  gap: 1px; margin-bottom: 2px;
+}
+.hw-cal-dh {
+  text-align: center; font-size: 0.72rem; font-weight: 600;
+  color: var(--muted); padding: 4px 0;
+}
+.hw-cal-body {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.hw-cal-cell {
+  min-height: 36px; border-radius: 6px; padding: 3px 4px;
+  display: flex; flex-direction: column; align-items: center;
+  background: var(--white); border: 1px solid #f0ede8;
+  font-size: 0.73rem;
+}
+.hw-cal-empty { background: transparent; border-color: transparent; }
+.hw-cal-today { background: var(--navy); color: var(--gold-light); border-color: var(--navy); }
+.hw-cal-today .hw-cal-day-num { color: var(--gold-light); }
+.hw-cal-wkend .hw-cal-day-num { color: var(--danger); }
+.hw-cal-day-num { font-weight: 600; }
+.hw-cal-dot { font-size: 0.65rem; line-height: 1; }
+.hw-dot-ok   { color: var(--success); }
+
