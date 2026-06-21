@@ -43,11 +43,25 @@
         <i class="fa-solid fa-users"></i>인사정보 관리
       </a>
     </li>
-    <li class="nav-item">
-      <a class="nav-link {% if request.endpoint=='attendance' %}active{% endif %}"
-         href="{{ url_for('attendance') }}">
-        <i class="fa-solid fa-clock"></i>출퇴근 관리
+    {% set att_active = request.endpoint in ['attendance','attendance_add','attendance_bulk_add','attendance_delete'] %}
+    <li class="nav-item nav-parent {% if att_active %}open{% endif %}">
+      <a class="nav-link nav-toggle {% if att_active %}active{% endif %}" href="#" onclick="toggleNav(this);return false">
+        <i class="fa-solid fa-clock"></i>출퇴근 관리<i class="fa-solid fa-chevron-right nav-arrow"></i>
       </a>
+      <ul class="nav-sub">
+        <li><a class="nav-sub-link {% if att_active and request.args.get('tab','search')=='input' %}active{% endif %}"
+               href="{{ url_for('attendance') }}?tab=input"><i class="fa-solid fa-keyboard"></i>근태입력</a></li>
+        <li><a class="nav-sub-link {% if att_active and request.args.get('tab','search')=='search' %}active{% endif %}"
+               href="{{ url_for('attendance') }}?tab=search"><i class="fa-solid fa-magnifying-glass"></i>근태조회</a></li>
+        <li><a class="nav-sub-link {% if att_active and request.args.get('tab')=='status' %}active{% endif %}"
+               href="{{ url_for('attendance') }}?tab=status"><i class="fa-solid fa-chart-bar"></i>근태현황</a></li>
+        <li><a class="nav-sub-link {% if att_active and request.args.get('tab')=='record' %}active{% endif %}"
+               href="{{ url_for('attendance') }}?tab=record"><i class="fa-solid fa-book"></i>출퇴근기록부</a></li>
+        <li><a class="nav-sub-link {% if att_active and request.args.get('tab')=='current' %}active{% endif %}"
+               href="{{ url_for('attendance') }}?tab=current"><i class="fa-solid fa-table"></i>출퇴근현황</a></li>
+        <li><a class="nav-sub-link {% if att_active and request.args.get('tab')=='late' %}active{% endif %}"
+               href="{{ url_for('attendance') }}?tab=late"><i class="fa-solid fa-triangle-exclamation"></i>지각현황</a></li>
+      </ul>
     </li>
     <li class="nav-item">
       <a class="nav-link {% if request.endpoint=='leave' %}active{% endif %}"
@@ -55,11 +69,19 @@
         <i class="fa-solid fa-calendar-days"></i>휴가 관리
       </a>
     </li>
-    <li class="nav-item">
-      <a class="nav-link {% if request.endpoint=='salary' %}active{% endif %}"
-         href="{{ url_for('salary') }}">
-        <i class="fa-solid fa-won-sign"></i>보수 관리
+    {% set sal_active = request.endpoint in ['salary','salary_settings','salary_severance'] %}
+    <li class="nav-item nav-parent {% if sal_active %}open{% endif %}">
+      <a class="nav-link nav-toggle {% if sal_active %}active{% endif %}" href="#" onclick="toggleNav(this);return false">
+        <i class="fa-solid fa-won-sign"></i>보수 관리<i class="fa-solid fa-chevron-right nav-arrow"></i>
       </a>
+      <ul class="nav-sub">
+        <li><a class="nav-sub-link {% if request.endpoint=='salary' %}active{% endif %}"
+               href="{{ url_for('salary') }}"><i class="fa-solid fa-file-invoice-dollar"></i>급여 관리</a></li>
+        <li><a class="nav-sub-link {% if request.endpoint=='salary_settings' %}active{% endif %}"
+               href="{{ url_for('salary_settings') }}"><i class="fa-solid fa-list"></i>수당/공제 항목</a></li>
+        <li><a class="nav-sub-link {% if request.endpoint=='salary_severance' %}active{% endif %}"
+               href="{{ url_for('salary_severance') }}"><i class="fa-solid fa-calculator"></i>퇴직금 계산</a></li>
+      </ul>
     </li>
     <li class="nav-item">
       <a class="nav-link {% if request.endpoint=='calendar_view' %}active{% endif %}"
@@ -238,6 +260,14 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 setTimeout(() => document.querySelectorAll('.flash-msg .alert').forEach(a => a.remove()), 4000);
+function toggleNav(el) {
+  const li = el.closest('.nav-parent');
+  li.classList.toggle('open');
+}
+// Auto-open active parent on load
+document.querySelectorAll('.nav-parent').forEach(li => {
+  if (li.querySelector('.nav-sub-link.active')) li.classList.add('open');
+});
 </script>
 {% block scripts %}{% endblock %}
 </body>

@@ -518,3 +518,75 @@ h1, h2, h3, h4, h5, h6 {
   align-items: center;
   gap: 8px;
 }
+
+/* ── Sidebar Sub-menu ─────────────────────────────────────────────────────── */
+.nav-parent > .nav-toggle {
+  cursor: pointer;
+  user-select: none;
+}
+.nav-arrow {
+  margin-left: auto;
+  font-size: 0.65rem;
+  transition: transform 0.2s;
+  opacity: 0.6;
+}
+.nav-parent.open > .nav-toggle .nav-arrow { transform: rotate(90deg); opacity: 1; }
+.nav-sub {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.25s ease;
+  background: rgba(0,0,0,0.15);
+}
+.nav-parent.open > .nav-sub { max-height: 400px; }
+.nav-sub-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px 7px 36px;
+  color: rgba(184, 199, 224, 0.75);
+  font-size: 0.82rem;
+  text-decoration: none;
+  border-left: 3px solid transparent;
+  transition: all 0.15s;
+}
+.nav-sub-link i { width: 14px; font-size: 0.78rem; text-align: center; }
+.nav-sub-link:hover { color: var(--gold-light); background: rgba(201,168,76,0.06); }
+.nav-sub-link.active {
+  color: var(--gold-light);
+  border-left-color: var(--gold);
+  background: rgba(201,168,76,0.1);
+  font-weight: 600;
+}
+
+/* ── Attendance Tabs ──────────────────────────────────────────────────────── */
+.att-tab-bar { border-bottom: 2px solid var(--border); margin-bottom: 1rem; }
+.att-tab-bar .nav-link {
+  color: var(--muted);
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+}
+.att-tab-bar .nav-link.active { color: var(--navy); border-bottom-color: var(--gold); font-weight: 600; }
+.att-tab-bar .nav-link:hover  { color: var(--navy); }
+
+/* ── Attendance Grid (출퇴근현황) ─────────────────────────────────────────── */
+.att-grid-table { font-size: 0.7rem; }
+.att-grid-table th { background: var(--navy); color: rgba(255,255,255,0.85); text-align: center; padding: 4px 2px; font-weight: 500; position: sticky; top: 0; }
+.att-grid-table td { text-align: center; padding: 3px 2px; border: 1px solid #eee; }
+.att-grid-table .emp-name { text-align: left; font-weight: 600; min-width: 70px; padding: 3px 8px; }
+.att-dot-ok   { color: #1a8a5a; font-weight: 700; }
+.att-dot-none { color: #ddd; }
+.att-dot-late { color: #b8780a; font-weight: 700; }
+
+/* ── Salary Settings Table ────────────────────────────────────────────────── */
+.settings-table th { background: #f0f4f8; font-weight: 600; font-size: 0.8rem; }
+.settings-table td { vertical-align: middle; font-size: 0.82rem; }
+.badge-taxtype-전액과세 { background: #dc3545; color: #fff; }
+.badge-taxtype-비과세   { background: #198754; color: #fff; }
+.badge-paytype-고정      { background: #0d6efd; color: #fff; }
+.badge-paytype-변동      { background: #fd7e14; color: #fff; }

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash, make_response
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from db import get_db, init_db, calc_annual_leave, calc_work_hours
@@ -191,11 +191,15 @@ def register():
     return redirect(url_for('login_page'))
 
 @app.route('/logout')
-@login_required
 def logout():
     logout_user()
     session.clear()
-    return redirect(url_for('login_page'))
+    resp = make_response(redirect(url_for('login_page')))
+    resp.delete_cookie('session')
+    resp.delete_cookie('remember_token')
+    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    resp.headers['Pragma'] = 'no-cache'
+    return resp
 
 @app.route('/change_password', methods=['POST'])
 @login_required
@@ -550,27 +554,34 @@ def employee_json(eid):
 @app.route('/attendance')
 @login_required
 def attendance():
-    cid = _cid_filter()
-    eid = _eid_filter()
+    cid   = _cid_filter()
+    eid   = _eid_filter()
     year  = int(request.args.get('year',  date.today().year))
     month = int(request.args.get('month', date.today().month))
-    mode  = request.args.get('mode', 'month')
+    tab   = request.args.get('tab', 'search')  # search|status|input|record|current|late
+    # 하위 호환: 기존 mode 파라미터 지원
+    legacy_mode = request.args.get('mode', '')
+    if legacy_mode == 'year':
+        tab = 'status'
 
     ym = f"{year}-{month:02d}"
     db = get_db()
-    q = ("SELECT a.*, e.name as emp_name, e.dept, c.name as co_name "
-         "FROM attendance a JOIN employees e ON a.employee_id=e.id "
-         "JOIN companies c ON e.company_id=c.id WHERE a.work_date LIKE ?")
-    params = [ym + '%']
-    if eid:
-        q += " AND a.employee_id=?"
-        params.append(eid)
-    elif cid:
-        q += " AND e.company_id=?"
-        params.append(cid)
-    rows = db.execute(q + " ORDER BY a.work_date, e.name", params).fetchall()
 
-    emps_q = ("SELECT e.id, e.name, c.name as co_name FROM employees e "
+    base_att = ("FROM attendance a JOIN employees e ON a.employee_id=e.id "
+                "JOIN companies c ON e.company_id=c.id WHERE a.work_date LIKE ?")
+    base_p = [ym + '%']
+    if eid:
+        base_att += " AND a.employee_id=?"
+        base_p.append(eid)
+    elif cid:
+        base_att += " AND e.company_id=?"
+        base_p.append(cid)
+
+    sel_att = "SELECT a.*, e.name as emp_name, e.dept, c.name as co_name, e.id as emp_id "
+
+    rows = db.execute(sel_att + base_att + " ORDER BY a.work_date, e.name", base_p).fetchall()
+
+    emps_q = ("SELECT e.id, e.name, e.dept, c.name as co_name FROM employees e "
               "JOIN companies c ON e.company_id=c.id WHERE e.status='재직'")
     emps_p = []
     if eid:
@@ -581,8 +592,9 @@ def attendance():
         emps_p.append(cid)
     emps = db.execute(emps_q + " ORDER BY c.name, e.name", emps_p).fetchall()
 
+    # 연간 통계 (status 탭에서 사용)
     year_monthly, year_emps = [], []
-    if mode == 'year':
+    if tab == 'status':
         ybase = ("FROM attendance a JOIN employees e ON a.employee_id=e.id "
                  "JOIN companies c ON e.company_id=c.id WHERE a.work_date LIKE ?")
         yp = [str(year) + '%']
@@ -597,13 +609,33 @@ def attendance():
             f"SUM(a.work_hours) as total_h, SUM(a.overtime_hours) as total_ot {ybase} "
             f"GROUP BY mon ORDER BY mon", yp).fetchall()
         year_emps = db.execute(
-            f"SELECT e.name, e.dept, c.name as co_name, COUNT(*) as days, "
+            f"SELECT e.id, e.name, e.dept, c.name as co_name, COUNT(*) as days, "
             f"SUM(a.work_hours) as total_h, SUM(a.overtime_hours) as total_ot {ybase} "
             f"GROUP BY e.id ORDER BY c.name, e.name", yp).fetchall()
 
+    # 출퇴근현황: 직원×날짜 그리드
+    att_grid   = {}  # {emp_id: {day: record}}
+    total_days_in_month = cal_module.monthrange(year, month)[1]
+    if tab == 'current':
+        for r in rows:
+            day = int(r['work_date'][-2:])
+            att_grid.setdefault(r['emp_id'], {})[day] = dict(r)
+
+    # 지각현황: check_in > std_time
+    late_rows = []
+    std_time  = '09:00'
+    if tab == 'late':
+        late_q = (sel_att + base_att + " AND a.check_in IS NOT NULL AND a.check_in > ?")
+        late_rows = db.execute(late_q + " ORDER BY a.work_date, e.name",
+                               base_p + [std_time]).fetchall()
+
     db.close()
-    return render_template('attendance.html', rows=rows, emps=emps, year=year, month=month,
-        mode=mode, year_monthly=year_monthly, year_emps=year_emps,
+    return render_template('attendance.html',
+        rows=rows, emps=emps, year=year, month=month,
+        tab=tab, std_time=std_time,
+        year_monthly=year_monthly, year_emps=year_emps,
+        att_grid=att_grid, late_rows=late_rows,
+        total_days_in_month=total_days_in_month,
         companies=all_companies(), sel=selected_company())
 
 @app.route('/attendance/add', methods=['POST'])
@@ -632,7 +664,8 @@ def attendance_add():
     db.close()
     flash('출퇴근이 기록되었습니다.')
     return redirect(url_for('attendance',
-        year=f['work_date'][:4], month=int(f['work_date'][5:7])))
+        year=f['work_date'][:4], month=int(f['work_date'][5:7]),
+        tab=f.get('redirect_tab', 'search')))
 
 @app.route('/attendance/<int:aid>/delete', methods=['POST'])
 @login_required
@@ -702,7 +735,7 @@ def attendance_bulk_add():
     db.commit()
     db.close()
     flash(f'총 {count}일 출퇴근 기록이 일괄 등록되었습니다.')
-    return redirect(url_for('attendance', year=start_d.year, month=start_d.month))
+    return redirect(url_for('attendance', year=start_d.year, month=start_d.month, tab='input'))
 
 # ── 직원 출퇴근 체크인/아웃 ────────────────────────────────────────────────────
 @app.route('/checkin', methods=['POST'])
@@ -1053,6 +1086,201 @@ def consultation_json(cid):
     row = db.execute("SELECT * FROM consultations WHERE id=?", (cid,)).fetchone()
     db.close()
     return jsonify(dict(row)) if row else ('', 404)
+
+# ── 수당/공제 항목 마스터 ─────────────────────────────────────────────────────
+@app.route('/salary/settings')
+@login_required
+def salary_settings():
+    if current_user.is_employee:
+        return redirect(url_for('dashboard'))
+    cid = _cid_filter()
+    db  = get_db()
+    aq = "SELECT * FROM allowance_master WHERE is_active=1"
+    dq = "SELECT * FROM deduction_master WHERE is_active=1"
+    ap, dp = [], []
+    if cid:
+        aq += " AND (company_id=? OR company_id IS NULL)"
+        dq += " AND (company_id=? OR company_id IS NULL)"
+        ap, dp = [cid], [cid]
+    allowances  = db.execute(aq + " ORDER BY display_order, id", ap).fetchall()
+    deductions  = db.execute(dq + " ORDER BY display_order, id", dp).fetchall()
+    db.close()
+    return render_template('salary_settings.html',
+        allowances=allowances, deductions=deductions,
+        companies=all_companies(), sel=selected_company())
+
+@app.route('/salary/settings/allowance/add', methods=['POST'])
+@login_required
+def allowance_add():
+    if current_user.is_employee:
+        return redirect(url_for('dashboard'))
+    f   = request.form
+    cid = _cid_filter()
+    db  = get_db()
+    db.execute(
+        "INSERT INTO allowance_master(company_id,code,name,display_order,tax_type,pay_type,memo) "
+        "VALUES(?,?,?,?,?,?,?)",
+        (cid, f.get('code'), f['name'], int(f.get('display_order') or 0),
+         f.get('tax_type', '전액과세'), f.get('pay_type', '고정'), f.get('memo')))
+    db.commit(); db.close()
+    flash(f"수당항목 '{f['name']}'이 등록되었습니다.")
+    return redirect(url_for('salary_settings'))
+
+@app.route('/salary/settings/allowance/<int:aid>/delete', methods=['POST'])
+@login_required
+def allowance_delete(aid):
+    if current_user.is_employee:
+        return redirect(url_for('dashboard'))
+    db = get_db()
+    db.execute("UPDATE allowance_master SET is_active=0 WHERE id=?", (aid,))
+    db.commit(); db.close()
+    return redirect(url_for('salary_settings'))
+
+@app.route('/salary/settings/deduction/add', methods=['POST'])
+@login_required
+def deduction_add():
+    if current_user.is_employee:
+        return redirect(url_for('dashboard'))
+    f   = request.form
+    cid = _cid_filter()
+    db  = get_db()
+    db.execute(
+        "INSERT INTO deduction_master(company_id,code,name,display_order,memo) VALUES(?,?,?,?,?)",
+        (cid, f.get('code'), f['name'], int(f.get('display_order') or 0), f.get('memo')))
+    db.commit(); db.close()
+    flash(f"공제항목 '{f['name']}'이 등록되었습니다.")
+    return redirect(url_for('salary_settings'))
+
+@app.route('/salary/settings/deduction/<int:did>/delete', methods=['POST'])
+@login_required
+def deduction_delete(did):
+    if current_user.is_employee:
+        return redirect(url_for('dashboard'))
+    db = get_db()
+    db.execute("UPDATE deduction_master SET is_active=0 WHERE id=?", (did,))
+    db.commit(); db.close()
+    return redirect(url_for('salary_settings'))
+
+@app.route('/api/allowance_master')
+@login_required
+def api_allowance_master():
+    cid = _cid_filter()
+    db  = get_db()
+    q   = "SELECT * FROM allowance_master WHERE is_active=1"
+    p   = []
+    if cid:
+        q += " AND (company_id=? OR company_id IS NULL)"
+        p  = [cid]
+    rows = db.execute(q + " ORDER BY display_order, id", p).fetchall()
+    db.close()
+    return jsonify([dict(r) for r in rows])
+
+# ── 퇴직금 ────────────────────────────────────────────────────────────────────
+def _calc_severance(employee_id, retire_date_str=None):
+    """퇴직금 = 평균임금×30×(근속일수/365) (근로자퇴직급여보장법 제4조)"""
+    db  = get_db()
+    emp = db.execute("SELECT hire_date, base_salary, name FROM employees WHERE id=?",
+                     (employee_id,)).fetchone()
+    if not emp or not emp['hire_date']:
+        db.close()
+        return None
+    hire    = date.fromisoformat(emp['hire_date'])
+    retire  = date.fromisoformat(retire_date_str) if retire_date_str else date.today()
+    service = (retire - hire).days
+
+    if service < 365:
+        db.close()
+        return {'eligible': False, 'service_days': service, 'emp_name': emp['name']}
+
+    # 최근 3개월 임금 (salary 테이블)
+    last3 = db.execute(
+        "SELECT base+overtime_pay+bonus+allowance as total "
+        "FROM salary WHERE employee_id=? ORDER BY year DESC, month DESC LIMIT 3",
+        (employee_id,)).fetchall()
+
+    if last3:
+        three_wages = sum(r['total'] for r in last3)
+        three_days  = len(last3) * 30
+    else:
+        three_wages = (emp['base_salary'] or 0) * 3
+        three_days  = 90
+
+    avg_daily    = three_wages / three_days if three_days else 0
+    severance    = int(avg_daily * 30 * (service / 365))
+    db.close()
+    return {
+        'eligible':        True,
+        'emp_name':        emp['name'],
+        'service_days':    service,
+        'service_years':   round(service / 365, 2),
+        'three_month_wages': int(three_wages),
+        'three_month_days':  three_days,
+        'avg_daily_wage':  round(avg_daily),
+        'severance_pay':   severance,
+    }
+
+@app.route('/salary/severance')
+@login_required
+def salary_severance():
+    if current_user.is_employee:
+        return redirect(url_for('dashboard'))
+    cid = _cid_filter()
+    db  = get_db()
+    emps_q = ("SELECT e.id, e.name, e.hire_date, e.dept, c.name as co_name "
+              "FROM employees e JOIN companies c ON e.company_id=c.id "
+              "WHERE e.status='재직'")
+    emps_p = []
+    if cid:
+        emps_q += " AND e.company_id=?"
+        emps_p  = [cid]
+    emps = db.execute(emps_q + " ORDER BY c.name, e.name", emps_p).fetchall()
+
+    recs_q = ("SELECT sv.*, e.name as emp_name, c.name as co_name "
+              "FROM severance_record sv JOIN employees e ON sv.employee_id=e.id "
+              "JOIN companies c ON e.company_id=c.id WHERE 1=1")
+    recs_p = []
+    if cid:
+        recs_q += " AND e.company_id=?"
+        recs_p  = [cid]
+    records = db.execute(recs_q + " ORDER BY sv.created_at DESC", recs_p).fetchall()
+    db.close()
+    return render_template('severance.html', emps=emps, records=records,
+        companies=all_companies(), sel=selected_company())
+
+@app.route('/salary/severance/calc', methods=['POST'])
+@login_required
+def severance_calc():
+    f           = request.form
+    employee_id = f['employee_id']
+    retire_date = f.get('retire_date') or None
+    result      = _calc_severance(employee_id, retire_date)
+    if not result:
+        flash('직원 정보가 없습니다.')
+        return redirect(url_for('salary_severance'))
+    if not result['eligible']:
+        flash(f"{result['emp_name']}는 근속 {result['service_days']}일로 퇴직금 지급 요건(1년)에 미달합니다.")
+        return redirect(url_for('salary_severance'))
+    db = get_db()
+    db.execute(
+        "INSERT INTO severance_record"
+        "(employee_id,retire_date,service_days,avg_daily_wage,"
+        "three_month_wages,three_month_days,severance_pay,memo) "
+        "VALUES(?,?,?,?,?,?,?,?)",
+        (employee_id, retire_date or date.today().isoformat(),
+         result['service_days'], result['avg_daily_wage'],
+         result['three_month_wages'], result['three_month_days'],
+         result['severance_pay'], f.get('memo')))
+    db.commit(); db.close()
+    flash(f"{result['emp_name']} 퇴직금 {result['severance_pay']:,}원이 계산되었습니다.")
+    return redirect(url_for('salary_severance'))
+
+@app.route('/salary/severance/<int:rid>/delete', methods=['POST'])
+@login_required
+def severance_delete(rid):
+    db = get_db()
+    db.execute("DELETE FROM severance_record WHERE id=?", (rid,))
+    db.commit(); db.close()
+    return redirect(url_for('salary_severance'))
 
 # ── 월별 캘린더 ────────────────────────────────────────────────────────────────
 @app.route('/calendar')

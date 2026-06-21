@@ -110,6 +110,38 @@ def init_db():
         name TEXT DEFAULT '',
         created_at TEXT DEFAULT (date('now','localtime'))
     );
+    CREATE TABLE IF NOT EXISTS allowance_master (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        company_id INTEGER REFERENCES companies(id),
+        code TEXT,
+        name TEXT NOT NULL,
+        display_order INTEGER DEFAULT 0,
+        tax_type TEXT DEFAULT '전액과세',
+        pay_type TEXT DEFAULT '고정',
+        memo TEXT,
+        is_active INTEGER DEFAULT 1
+    );
+    CREATE TABLE IF NOT EXISTS deduction_master (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        company_id INTEGER REFERENCES companies(id),
+        code TEXT,
+        name TEXT NOT NULL,
+        display_order INTEGER DEFAULT 0,
+        memo TEXT,
+        is_active INTEGER DEFAULT 1
+    );
+    CREATE TABLE IF NOT EXISTS severance_record (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        employee_id INTEGER NOT NULL REFERENCES employees(id),
+        retire_date TEXT,
+        service_days INTEGER DEFAULT 0,
+        avg_daily_wage REAL DEFAULT 0,
+        three_month_wages INTEGER DEFAULT 0,
+        three_month_days INTEGER DEFAULT 0,
+        severance_pay INTEGER DEFAULT 0,
+        memo TEXT,
+        created_at TEXT DEFAULT (date('now','localtime'))
+    );
     """)
     conn.commit()
 
@@ -121,6 +153,7 @@ def init_db():
         "ALTER TABLE salary ADD COLUMN allowance_detail TEXT",
         "ALTER TABLE salary ADD COLUMN work_days INTEGER DEFAULT 0",
         "ALTER TABLE salary ADD COLUMN total_hours REAL DEFAULT 0",
+        "ALTER TABLE attendance ADD COLUMN late_minutes INTEGER DEFAULT 0",
     ]
     for sql in migrations:
         try:
