@@ -63,7 +63,35 @@ def load_user(uid):
 
 @app.context_processor
 def inject_globals():
-    return {'now': datetime.now(), 'today_str': date.today().isoformat()}
+    def get_active_cat():
+        ep = request.endpoint or ''
+        if ep in ['employees','employee_add','employee_edit','employee_delete','companies',
+                  'company_add','company_edit','company_delete','users','user_add',
+                  'user_delete','user_reset_pw']:
+            return 'hr'
+        if ep in ['attendance','attendance_add','attendance_bulk_add','attendance_delete',
+                  'leave','leave_add','leave_delete','calendar_view','checkin']:
+            return 'attendance'
+        if ep in ['trip','trip_add','trip_delete','trip_status']:
+            return 'trip'
+        if ep in ['salary','salary_add','salary_edit','salary_delete','salary_json',
+                  'salary_settings','allowance_add','allowance_delete',
+                  'deduction_add','deduction_delete','api_allowance_master',
+                  'salary_severance','severance_calc','severance_delete']:
+            return 'salary'
+        if ep in ['welfare','welfare_add','welfare_delete']:
+            return 'welfare'
+        if ep in ['education','education_add','education_delete','education_status']:
+            return 'education'
+        if ep in ['performance','performance_add','performance_delete','performance_score']:
+            return 'performance'
+        if ep in ['grievance','grievance_add','grievance_delete','grievance_respond']:
+            return 'grievance'
+        if ep in ['notices','notice_add','notice_delete','consultation']:
+            return 'notices'
+        return 'home'
+    return {'now': datetime.now(), 'today_str': date.today().isoformat(),
+            'active_cat': get_active_cat()}
 
 @app.errorhandler(Exception)
 def handle_exception(e):
