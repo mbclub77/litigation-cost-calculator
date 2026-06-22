@@ -1,0 +1,6 @@
+2026-06-22 00:07:00,656 INFO [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5050
+ * Running on http://192.0.2.2:5050
+2026-06-22 00:07:00,656 INFO [33mPress CTRL+C to quit[0m
+2026-06-22 00:07:02,451 INFO 127.0.0.1 - - [22/Jun/2026 00:07:02] "GET /login HTTP/1.1" 200 -
