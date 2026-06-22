@@ -1,0 +1,5 @@
+.claude/worktrees/
+__pycache__/
+*.pyc
+hr_system/hr.db
+hr_system/__pycache__/

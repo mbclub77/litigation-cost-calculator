@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "fable-ish": {
+      "source": {
+        "source": "github",
+        "repo": "chrisryugj/fable-ish"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "fable-ish@fable-ish": true
+  }
+}
