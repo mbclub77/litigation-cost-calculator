@@ -385,6 +385,11 @@ def dashboard():
         notice_rows = db.execute(nq + " ORDER BY is_pinned DESC, created_at DESC LIMIT 5", np_).fetchall()
         db.close()
 
+        today = date.today()
+        first_wd = date(today.year, today.month, 1).weekday()
+        total_days = cal_module.monthrange(today.year, today.month)[1]
+        att_map = {a['work_date']: dict(a) for a in month_atts_list}
+
         return render_template('dashboard.html',
             is_employee_view=True,
             today_att=today_att,
@@ -394,7 +399,9 @@ def dashboard():
             leave_bal=leave_bal,
             last_salaries=last_salaries,
             emp_info=emp_info,
-            month_atts_list=month_atts_list,
+            att_map=att_map,
+            first_wd=first_wd,
+            total_days=total_days,
             notice_rows=notice_rows,
             companies=all_companies(), sel=selected_company())
 

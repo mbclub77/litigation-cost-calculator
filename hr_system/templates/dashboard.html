@@ -203,14 +203,6 @@
         <span class="fw-semibold">{{ now.strftime('%Y년 %m월') }} 근무현황</span>
       </div>
       <div class="card-body p-3">
-        {% set att_map = {} %}
-        {% for a in month_atts_list %}
-          {% set _ = att_map.update({a.work_date: a}) %}
-        {% endfor %}
-        {% set today_s = today_str %}
-        {% set y = now.year %}
-        {% set m = now.month %}
-        {% import 'calendar_macro.html' as cmacro ignore missing %}
         <div class="hw-mini-cal">
           <div class="hw-cal-head">
             {% for d in ['월','화','수','목','금','토','일'] %}
@@ -218,35 +210,19 @@
             {% endfor %}
           </div>
           <div class="hw-cal-body">
-            {% set ns = namespace(first_wd=0, total_d=0) %}
-            {% for day in range(1, 32) %}
-              {% if day == 1 %}
-                {# python weekday: 0=Mon, 6=Sun — we display Mon-Sun #}
-                {% set ns.first_wd = now.replace(day=1).weekday() %}
-                {% set ns.total_d = (now.replace(month=m % 12 + 1, day=1) - now.replace(day=1)).days if m < 12 else (now.replace(year=y+1, month=1, day=1) - now.replace(day=1)).days %}
-              {% endif %}
-            {% endfor %}
-            <!-- empty cells before first day -->
-            {% for i in range(ns.first_wd) %}
+            {% for i in range(first_wd) %}
             <div class="hw-cal-cell hw-cal-empty"></div>
             {% endfor %}
-            <!-- day cells -->
-            {% set total_days_in_month = namespace(v=31) %}
-            {% for day in range(1, 32) %}
-              {% set ds = '%04d-%02d-%02d'|format(y, m, day) %}
-              {% if ds <= '%04d-%02d-31'|format(y, m) %}
-                {% set wd = (ns.first_wd + day - 1) % 7 %}
-                {% set a = att_map.get(ds) %}
-                <div class="hw-cal-cell {% if ds == today_s %}hw-cal-today{% endif %}
-                  {% if wd >= 5 %}hw-cal-wkend{% endif %}">
-                  <span class="hw-cal-day-num">{{ day }}</span>
-                  {% if a %}
-                    {% if a.check_in %}
-                    <span class="hw-cal-dot hw-dot-ok" title="{{ a.check_in }}~{{ a.check_out or '' }}">●</span>
-                    {% endif %}
-                  {% endif %}
-                </div>
-              {% endif %}
+            {% for day in range(1, total_days + 1) %}
+              {% set ds = '%04d-%02d-%02d'|format(now.year, now.month, day) %}
+              {% set wd = (first_wd + day - 1) % 7 %}
+              {% set a = att_map.get(ds) %}
+              <div class="hw-cal-cell {% if ds == today_str %}hw-cal-today{% endif %} {% if wd >= 5 %}hw-cal-wkend{% endif %}">
+                <span class="hw-cal-day-num">{{ day }}</span>
+                {% if a and a.check_in %}
+                <span class="hw-cal-dot hw-dot-ok" title="{{ a.check_in }}~{{ a.check_out or '' }}">●</span>
+                {% endif %}
+              </div>
             {% endfor %}
           </div>
           <div class="mt-2 d-flex gap-3 small text-muted">
